@@ -1,4 +1,5 @@
 #include "isaeslam/data/maps/localmap.h"
+#include <iostream>
 
 namespace isae {
 
@@ -36,18 +37,44 @@ void LocalMap::discardLastFrame() {
 
     // remove landmarks in the map without any feature
     this->removeEmptyLandmarks();
+    // _margin_flag = false;
+
+    // If we have not enough landmarks in common with the last frame, raise the marginalization flag
+    int lmk_counter = 0;
+    for (auto &feat_last : _frames.front()->getSensors().at(0)->getFeatures()["pointxd"]) {
+        if (!feat_last->getLandmark().lock())
+            continue;
+        for (auto &feat_curr : _frames.back()->getSensors().at(0)->getFeatures()["pointxd"]) {
+            if (!feat_curr->getLandmark().lock())
+                continue;
+            if (feat_last->getLandmark().lock()->_id == feat_curr->getLandmark().lock()->_id) {
+                lmk_counter++;
+            }
+        }
+
+        if (lmk_counter > 5) {
+            break;
+        }
+    }
+
+    if (lmk_counter < 5) {
+        _margin_flag = true;
+    } else {
+        _margin_flag = false;
+    }
 }
 
 void LocalMap::removeEmptyLandmarks() {
     // Remove map empty landmarks
     for (auto &tlmks : _landmarks) {
-        for(std::vector<std::shared_ptr<isae::ALandmark>>::iterator it = tlmks.second.begin(); it!=tlmks.second.end();) {
-            if (it->get()->getFeatures().empty()){ 
+        for (std::vector<std::shared_ptr<isae::ALandmark>>::iterator it = tlmks.second.begin();
+             it != tlmks.second.end();) {
+            if (it->get()->getFeatures().empty()) {
                 it->get()->setMarg();
-                
+
                 _localmap_mtx.lock();
                 it = tlmks.second.erase(it);
-                 _localmap_mtx.unlock();
+                _localmap_mtx.unlock();
             } else {
                 it++;
             }

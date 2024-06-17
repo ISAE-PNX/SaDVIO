@@ -8,6 +8,10 @@ ALandmark::ALandmark(Eigen::Affine3d T_w_l, std::vector<std::shared_ptr<isae::AF
     _T_w_l             = T_w_l;
     this->_initialized = true;
 
+    // increases everytime an object is created
+    _landmark_count++;
+    _id = _landmark_count;
+
     for (auto f : features) {
         addFeature(f);
     }

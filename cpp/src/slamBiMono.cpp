@@ -231,14 +231,13 @@ bool SLAMBiMono::backEndStep() {
         }
 
         // Marginalization (+ sparsification) of the last frame
-        if (_local_map->getMarginalizationFlag()) {
-            isae::timer::tic();
+        isae::timer::tic();
+        while (_local_map->getMarginalizationFlag()) {
             if (_slam_param->_config.marginalization == 1)
                 _slam_param->getOptimizerBack()->marginalize(_local_map->getFrames().at(0),
                                                              _local_map->getFrames().at(1),
                                                              _slam_param->_config.sparsification == 1);
 
-            _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
             // Uncomment below to enable global map
             // _global_map->addFrame(_local_map->getFrames().at(0));
 
@@ -246,11 +245,13 @@ bool SLAMBiMono::backEndStep() {
             _local_map->discardLastFrame();
             _map_mutex.unlock();
         }
+        _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + (double)_local_map->getFrames().size()) / _nkeyframes;
 
         // Optimize Local Map
         isae::timer::tic();
         _slam_param->getOptimizerBack()->localMapBA(_local_map, _local_map->getFixedFrameNumber());
         _avg_wdw_opt_t = (_avg_wdw_opt_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
+        std::cout << "Map size = " << _local_map->getFrames().size() << std::endl;
         profiling();
 
         // Reset frame to optim
