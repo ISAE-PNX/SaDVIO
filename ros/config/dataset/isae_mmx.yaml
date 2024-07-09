@@ -1,0 +1,22 @@
+# General sensor definitions.
+dataset: isae_mmx
+ncam: 1
+
+camera_0:
+  topic: cam0/image_raw
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [1.,0.,0.,0.,
+          0.,1.,0.,0.,
+           0.,0.,1.,0.,
+            0., 0., 0., 1.]
+
+  # Camera specific definitions.
+  rate_hz: 20
+  resolution: [968, 608]
+  projection_model: pinhole
+  intrinsics: [1393.85, 1393.3, 505.5, 294.75] # for downsampling
+  distortion_model: radial-tangential
+  distortion_coefficients: [-0.1967, 0.3431,0, 0]

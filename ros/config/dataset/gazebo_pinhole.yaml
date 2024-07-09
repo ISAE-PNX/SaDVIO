@@ -1,0 +1,49 @@
+# General sensor definitions.
+dataset: Gazebo
+ncam: 2
+
+camera_0:
+  topic: /camera_left/pinhole/image_raw_color
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [0.9014230294956842, 0.0, -0.4329393974851712, -0.11091407818111448, 
+0.0, 1.0, 0.0, -0.06, 
+0.4329393974851712, 0.0, 0.9014230294956842, -0.19637735933969994, 
+0.0, 0.0, 0.0, 1.0]
+
+
+  # Camera specific definitions.
+  rate_hz: 30
+  resolution: [1280, 720]
+  projection_model: pinhole
+  intrinsics: [458.654, 457.296, 648.5, 366.8] #fx, fy, cu, cv
+  # resolution: [640, 360]
+  # intrinsics: [229.32, 228.64, 324.25, 183.4] #fx, fy, cu, cv
+  rmax: 848.0
+  distortion_model: None
+  distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
+
+camera_1:
+  topic: /camera_right/pinhole/image_raw_color
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [0.9014230294956842, 0.0, -0.4329393974851712, -0.11091407818111448, 
+0.0, 1.0, 0.0, 0.06, 
+0.4329393974851712, 0.0, 0.9014230294956842, -0.19637735933969994, 
+0.0, 0.0, 0.0, 1.0]
+
+  # Camera specific definitions.
+  rate_hz: 30
+  resolution: [1280, 720]
+  projection_model: pinhole
+  intrinsics: [458.654, 457.296, 648.5, 366.8] #fx, fy, cu, cv
+  # resolution: [640, 360]
+  # intrinsics: [229.32, 228.64, 324.25, 183.4] #fx, fy, cu, cv
+  rmax: 848.0
+  distortion_model: None
+  distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
+  

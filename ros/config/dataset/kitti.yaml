@@ -1,0 +1,43 @@
+# General sensor definitions.
+dataset: KITTI
+ncam: 2
+
+camera_0:
+  topic: /cam00/image_raw
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [1.0, 0.0, 0.0, 0.0,
+		  0.0, 1.0, 0.0, -0.268583,
+	    0.0, 0.0, 1.0, 0.0,
+		  0.0, 0.0, 0.0, 1.0]
+
+  # Camera specific definitions.
+  rate_hz: 20
+  resolution: [1242, 375]
+  projection_model: pinhole
+  intrinsics: [718.856 , 718.856, 607.193, 185.216] #fu, fv, cu, cv
+  distortion_model: None
+  distortion_coefficients: [-0.28340811, 0.07395907, 0.00019359, 1.76187114e-05]
+
+camera_1:
+  topic: /cam01/image_raw 
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [1.0, 0.0, 0.0, 0.0,
+		  0.0, 1.0, 0.0, 0.268583,
+	    0.0, 0.0, 1.0, 0.0,
+		  0.0, 0.0, 0.0, 1.0]
+
+
+  # Camera specific definitions.
+  rate_hz: 20
+  resolution: [1242, 375]
+  projection_model: pinhole
+  intrinsics: [718.856 , 718.856, 607.193, 185.216] #fu, fv, cu, cv
+  distortion_model: None
+  distortion_coefficients: [-0.28368365,  0.07451284, -0.00010473, -3.55590700e-05]
+  

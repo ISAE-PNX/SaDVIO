@@ -1,0 +1,10 @@
+<launch>
+
+    <!-- Visualization - RViz-->
+    <let name="rviz_config" value="$(find-pkg-share isae_slam)/launch/isae_slam.rviz"/>
+    <node name="rviz" pkg="rviz2" exec="rviz2" args="-d $(var rviz_config)" />
+    
+    <!-- SLAM node -->
+    <node name="isae_slam" pkg="isae_slam" exec="vio_ros" output="screen" />
+
+</launch>

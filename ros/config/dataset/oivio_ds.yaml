@@ -1,0 +1,61 @@
+# General sensor definitions.
+dataset: oivio
+ncam: 2
+
+camera_0:
+  topic: cam0/image_raw
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [ 0.9998664, -0.0004085695, -0.0163398, -0.010594,
+         -0.01634012, -0.0007861392, -0.9998662, -0.06035109,
+          0.0003956694, 0.9999996, -0.0007927102, -0.008747597,
+          0.0, 0.0, 0.0, 1.0]
+
+
+
+  # Camera specific definitions.
+  rate_hz: 30
+  resolution: [800, 450]
+  projection_model: pinhole
+  intrinsics: [399.5403125, 399.7266875, 397.355375 , 221.968375 ] #fu, fv, cu, cv
+  distortion_model: radial-tangential
+  distortion_coefficients: [-0.04087948, 0.03006104, 0, 0]
+
+camera_1:
+  topic: cam1/image_raw
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [ 0.9999221, 0.0006674261, -0.01246673, 0.03954445,
+         -0.01246507, -0.00243322, -0.9999193, -0.06110263,
+         -0.0006977066, 0.9999968, -0.002424711, -0.008894352,
+          0.0, 0.0, 0.0, 1.0]
+      
+  # Camera specific definitions.
+  rate_hz: 30
+  resolution: [800, 450]
+  projection_model: pinhole
+  intrinsics: [399.872375 , 399.9888125, 400.731875 , 221.8031875] #fu, fv, cu, cv
+  distortion_model: radial-tangential
+  distortion_coefficients: [-0.04023259, 0.02970617, 0, 0]
+
+imu:
+  topic: /imu0
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [1.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0,
+          0.0, 0.0, 0.0, 1.0]
+  rate_hz: 100
+
+  # Inertial sensor noise model parameters (static)
+  gyroscope_noise_density: 0.01     # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+  gyroscope_random_walk: 0.0001       # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+  accelerometer_noise_density: 0.1  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+  accelerometer_random_walk: 0.001    # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )

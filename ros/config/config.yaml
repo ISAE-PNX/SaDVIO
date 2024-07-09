@@ -1,0 +1,167 @@
+#################################################################################
+# Details about the dataset
+#################################################################################
+
+## dataset_id in {kitti, eth, gazebo_fisheye, gazebo_pinhole, oivio, isae}
+dataset_id : "isae_fisheye"
+
+## slam mode in {mono, bimono, nofov, monovio, bimonovio}
+slam_mode : "bimonovio"
+enable_visu : 1
+multithreading : 0
+
+## contrast enhancer parameters (0: nothing, 1: clahe, 2: histogram equalization, 
+## 3: image normalization, 4: adaptive gamma correction)
+contrast_enhancer : 1
+clahe_clip : 2
+downsampling: 0.5
+
+#################################################################################
+# Details about the SLAM Algorithm
+############################<#####################################################
+
+## pose estimator method to used in {epipolar, epipolar_custom, pnp}
+pose_estimator: "pnp"
+
+## select optimizer to use in {Analytic, Numeric, Angular, AngularAnalytic}
+optimizer: "AngularAnalytic"
+
+## type of tracker in {matcher, klt}
+tracker: "klt"
+
+## LocalMap parameters
+min_kf_number: 1                # number of keyframes that are added by default when the map starts
+max_kf_number: 12               # size of the sliding window
+fixed_frame_number: 1         # number of keyframe that will remain static during windowed BA
+marginalization: 1              # marginalization of old variables or not
+sparsification: 1             # sparsification of the prior or not   
+
+## Mesh parameters
+mesh3d: 0                      # mesh3d computation or not 
+ZNCC_tsh: 0.8                   # Threshold on ZNCC for triangle filtering
+max_length_tsh: 2               # Threshold on maximum length for triangle filtering
+
+## KF selection criteria
+min_lmk_number: 50              # minimum tracked landmark below which a KF is voted
+min_movement_parallax: 0.05     # parallax below which no frame is to be added (stop, small motion) in degree
+max_movement_parallax: 4        # maximum parallax between two images above which a frame is added in degree
+
+
+################################################################################
+# Details about the SLAM Algorithm
+#################################################################################
+features_handled: 
+
+  # - label_feature: "edgeletxd"
+  #   detector_label: "Edgelet2DFeatureDetector"
+  #   max_reproj_err: 1.0
+  #   number_detected_features: 500
+  #   number_kept_features: 200
+  #   rows_detector: 3
+  #   cols_detector: 4
+  #   tracker_label: "EdgeletFeatureTracker"
+  #   tracker_height: 21
+  #   tracker_width: 21
+  #   tracker_nlvls_pyramids: 3
+  #   tracker_max_err: 50
+  #   matcher_label: "EdgeletFeatureMatcher"
+  #   max_matching_dist: 64
+  #   matcher_height: 161
+  #   matcher_width: 161
+  #   lmk_triangulator: "Edgelet3DLandmarkInitializer"
+
+  # - label_feature: "pointxd"
+  #   detector_label: "cvORBFeatureDetector"
+  #   number_detected_features: 250
+  #   number_kept_features: 500
+  #   n_features_per_cell: 1
+  #   tracker_label: "Point2DFeatureTracker"
+  #   tracker_height: 16
+  #   tracker_width: 16
+  #   tracker_nlvls_pyramids: 3
+  #   tracker_max_err: 50
+  #   matcher_label: "Point2DFeatureMatcher"
+  #   max_matching_dist: 50
+  #   matcher_height: 16
+  #   matcher_width: 16
+  #   lmk_triangulator: "Point3DLandmarkInitializer"
+
+  # - label_feature: "pointxd"
+  #   detector_label: "cvKAZEFeatureDetector"
+  #   number_detected_features: 250
+  #   number_kept_features: 200
+  #   n_features_per_cell: 250
+  #   tracker_label: "Point2DFeatureTracker"
+  #   tracker_height: 16
+  #   tracker_width: 16
+  #   tracker_nlvls_pyramids: 3
+  #   tracker_max_err: 30
+  #   matcher_label: "Point2DFeatureMatcher"
+  #   max_matching_dist: 50
+  #   matcher_height: 16
+  #   matcher_width: 16
+  #   lmk_triangulator: "Point3DLandmarkInitializer"
+
+  - label_feature: "pointxd"
+    detector_label: "cvFASTFeatureDetector"
+    number_detected_features: 200
+    number_kept_features: 600
+    n_features_per_cell: 1
+    tracker_label: "Point2DFeatureTracker"
+    tracker_height: 24
+    tracker_width: 24
+    tracker_nlvls_pyramids: 3
+    tracker_max_err: 30
+    matcher_label: "Point2DFeatureMatcher"
+    max_matching_dist: 32
+    matcher_width: 32
+    matcher_height: 32
+    lmk_triangulator: "Point3DLandmarkInitializer"
+
+  # - label_feature: "pointxd"
+  #   detector_label: "cvGFTTFeatureDetector"
+  #   number_detected_features: 250
+  #   number_kept_features: 600
+  #   n_features_per_cell: 1
+  #   tracker_label: "Point2DFeatureTracker"
+  #   tracker_height: 24
+  #   tracker_width: 24
+  #   tracker_nlvls_pyramids: 3
+  #   tracker_max_err: 30
+  #   matcher_label: "Point2DFeatureMatcher"
+  #   max_matching_dist: 50
+  #   matcher_height: 16
+  #   matcher_width: 16
+  #   lmk_triangulator: "Point3DLandmarkInitializer"
+
+  # - label_feature: "pointxd"
+  #   detector_label: "cvBRISKFeatureDetector"
+  #   number_detected_features: 300
+  #   number_kept_features: 200
+  #   n_features_per_cell: 300
+  #   tracker_label: "Point2DFeatureTracker"
+  #   tracker_height: 16
+  #   tracker_width: 16
+  #   tracker_nlvls_pyramids: 3
+  #   tracker_max_err: 50
+  #   matcher_label: "Point2DFeatureMatcher"
+  #   max_matching_dist: 50
+  #   matcher_height: 32
+  #   matcher_width: 32
+  #   lmk_triangulator: "Point3DLandmarkInitializer"
+
+  # - label_feature: "linexd"
+  #   detector_label: "Line2DFeatureDetector"
+  #   number_detected_features: 300
+  #   number_kept_features: 200
+  #   n_features_per_cell: 300        # TODO chack why crash if < num detected features
+  #   tracker_label: "Line2DFeatureTracker"
+  #   tracker_height: 64
+  #   tracker_width: 64
+  #   tracker_nlvls_pyramids: 3
+  #   tracker_max_err: 50
+  #   matcher_label: "Line2DFeatureMatcher"
+  #   max_matching_dist: 50
+  #   matcher_height: 64
+  #   matcher_width: 64
+  #   lmk_triangulator: "Line3DLandmarkInitializer"

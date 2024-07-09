@@ -1,0 +1,10 @@
+
+cmake-build-debug/
+
+\.idea/
+
+cmake-build-release/
+
+cpp/build
+.vscode/
+*.csv

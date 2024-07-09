@@ -1,0 +1,66 @@
+# General sensor definitions.
+dataset: omnicv
+ncam: 1
+camera_type: camera
+
+# Camera fisheye left
+camera_0:
+  topic: /cam_0/image_raw/compressed
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [1.0, 0.0, 0.0, 0.0,
+		  0.0, 1.0, 0.0, 0.0,
+	    0.0, 0.0, 1.0, 0.0,
+		  0.0, 0.0, 0.0, 1.0]
+
+  # Camera specific definitions.
+  rate_hz: 20
+  resolution: [960, 540]
+  projection_model: double_sphere
+  intrinsics: [-0.26319993236239353, 0.5737729289269318, 363.6511932593745, 364.14618725362334, 946.0432529885562, 557.2515897855972] #fu, fv, cu, cv
+  distortion_model: None
+  distortion_coefficients: [0.08573614401899815, -0.13594755874517866, 0.0037778313857151, 0.0006423194027920849]
+
+# Camera pinhole front
+# camera_1:
+#   topic: /cam1/image_raw/compressed
+#   # Sensor extrinsics wrt. the body-frame.
+#   T_BS:
+#     cols: 4
+#     rows: 4
+#     data: [1.0, 0.0, 0.0, 0.0,
+#		  0.0, 1.0, 0.0, 0.0,
+#	    0.0, 0.0, 1.0, 0.0,
+#		  0.0, 0.0, 0.0, 1.0]
+
+#   # Camera specific definitions.
+#   rate_hz: 20
+#   resolution: [752, 480]
+#   projection_model: pinhole
+#   intrinsics: [457.587, 456.134, 379.999, 255.238] #fu, fv, cu, cv
+#   distortion_model: radial-tangential
+#   distortion_coefficients: [-0.28368365,  0.07451284, -0.00010473, -3.55590700e-05]
+
+
+# Camera fisheye right
+# camera_2:
+#   topic: /cam_2/image_raw/compressed
+#   # Sensor extrinsics wrt. the body-frame.
+#   T_BS:
+#     cols: 4
+#     rows: 4
+#     data: [1.0, 0.0, 0.0, 0.0,
+# 		  0.0, 1.0, 0.0, 0.0,
+# 	    0.0, 0.0, 1.0, 0.0,
+# 		  0.0, 0.0, 0.0, 1.0]
+
+#   # Camera specific definitions.
+#   rate_hz: 20
+#   resolution: [960, 540]
+#   projection_model: double_sphere
+#   intrinsics: [-0.26319993236239353, 0.5737729289269318, 363.6511932593745, 364.14618725362334, 946.0432529885562, 557.2515897855972] #fu, fv, cu, cv
+#   distortion_model: None
+#   distortion_coefficients: [0.08573614401899815, -0.13594755874517866, 0.0037778313857151, 0.0006423194027920849]
+  

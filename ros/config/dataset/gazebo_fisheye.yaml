@@ -1,0 +1,43 @@
+# General sensor definitions.
+dataset: Gazebo
+ncam: 2
+
+camera_0:
+  topic: /camera_left/fisheye/fisheye_image_raw
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [-0.00020367320369504838, -0.43334732696453027, 0.9012269707071147, 0.605, 
+-0.9999999792586127, 8.826124022612292e-05, -0.00018355578818757268, 0.0, 
+1.1102230246251565e-16, -0.9012269893998126, -0.4333473359527552, 0.347, 
+0.0, 0.0, 0.0, 1.0]
+
+  rate_hz: 30
+  resolution: [848, 848]
+  projection_model: equidistant
+  intrinsics: [1.0, 1.0, 424, 424] #fx, fy, cu, cv
+  rmax: 424.0
+  distortion_model: None
+  distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
+
+
+camera_1:
+  topic: /camera_right/fisheye/fisheye_image_raw
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [-0.00020367320369507613, 0.0751328048015113, -0.9971735155728336, -0.296, 
+0.9999999792586128, 1.5302539373873714e-05, -0.00020309752876918052, 0.0, 
+-5.551115123125783e-17, -0.997173536255596, -0.07513280635986999, 0.78, 
+0.0, 0.0, 0.0, 1.0]
+
+  rate_hz: 30
+  resolution: [848, 848]
+  projection_model: equidistant
+  intrinsics: [1.0, 1.0, 424, 424] #fx, fy, cu, cv
+  rmax: 424.0
+  distortion_model: None
+  distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
+  
