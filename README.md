@@ -58,3 +58,21 @@ You can then run this executable, adding the folder of the config files and the 
 A few functionnalities are currently being tested, their performances are not guaranteed and were not presented in any paper:
 * The lines as features and landmarks
 * The *mono* and *monovio* modes
+
+Please consider citing one of the related work if you use our system in your research:
+
+@inproceedings{sparsifDebeunne,
+  author={Debeunne, César and Vallvé, Joan and Torres, Alex and Vivet, Damien},
+  booktitle={2023 IEEE/RSJ International Conference on Intelligent Robots and Systems }, 
+  title={Fast Bi-Monocular Visual Odometry Using Factor Graph Sparsification}, 
+  year={2023},
+  pages={10716-10722},
+}
+
+@inproceedings{debeunne2023non,
+  title={Non-Recovering Field-of-View Imaging-Based SLAM for Lava Tu es Exploration},
+  author={Debeunne, C{\'e}sar and Vivet, Damien and Torres, Alex},
+  booktitle={17th Symposium on Advanced Space Technologies in Robotics and Automation (ASTRA)},
+  year={2023}
+}
+
