@@ -284,13 +284,7 @@ TEST_F(ImuTest, predictionPositionVelocity) {
     double lambda[1] = {0.0};
 
     std::vector<double *> parameters_blocks;
-    std::vector<const ceres::Manifold *> *manifs = new std::vector<const ceres::Manifold *>;
-    manifs->push_back(nullptr);
-    manifs->push_back(nullptr);
-    manifs->push_back(nullptr);
-    manifs->push_back(nullptr);
-    manifs->push_back(nullptr);
-    manifs->push_back(nullptr);
+    std::vector<const ceres::Manifold *> *manifs = nullptr;
     parameters_blocks.push_back(dX_i.values());
     parameters_blocks.push_back(dX_j.values());
     parameters_blocks.push_back(dvi.values());
@@ -363,14 +357,7 @@ TEST_F(ImuTest, predictionPositionVelocity) {
 
     double r_w_i[2] = {0.0, 0.0};
     std::vector<double *> parameters_blocks1;
-    std::vector<const ceres::Manifold *> *manifs1 = new std::vector<const ceres::Manifold *>;
-
-    manifs1->push_back(nullptr);
-    manifs1->push_back(nullptr);
-    manifs1->push_back(nullptr);
-    manifs1->push_back(nullptr);
-    manifs1->push_back(nullptr);
-    manifs1->push_back(nullptr);
+    std::vector<const ceres::Manifold *> *manifs1 = nullptr;
     parameters_blocks1.push_back(r_w_i);
     parameters_blocks1.push_back(dvi.values());
     parameters_blocks1.push_back(dvj.values());

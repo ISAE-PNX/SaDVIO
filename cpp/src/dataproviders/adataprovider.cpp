@@ -408,11 +408,11 @@ bool EUROCGrabber::addNextFrame() {
             std::cout << "\n Throw img1 -- Sync error : " << (cam0_ts - cam1_ts) << "\n";
         } else {
 
-            std::string path_img0 = _folder_path + "/cam0/data/" + _cam0_filename_queue.front();
-            std::string path_img1 = _folder_path + "/cam1/data/" + _cam1_filename_queue.front();
+            std::string path_img0 = _folder_path + "/cam0/data/" +  std::to_string((unsigned long long)_cam0_timestamp_queue.front()) + ".png";
+            std::string path_img1 = _folder_path + "/cam1/data/" + std::to_string((unsigned long long)_cam1_timestamp_queue.front()) + ".png";
             cv::Mat img_left      = cv::imread(path_img0, cv::IMREAD_GRAYSCALE);
             if (img_left.empty()) {
-                std::cerr << path_img0 << " not opened " << std::endl;
+                std::cout << std::to_string((unsigned long long)_cam0_timestamp_queue.front()) + ".png"  << " not opened " << std::endl;
                 std::cout << _folder_path << std::endl;
                 std::cout << path_img0 << std::endl;
                 return false;

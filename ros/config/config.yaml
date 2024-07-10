@@ -3,7 +3,7 @@
 #################################################################################
 
 ## dataset_id in {kitti, eth, gazebo_fisheye, gazebo_pinhole, oivio, isae}
-dataset_id : "isae_fisheye"
+dataset_id : "eth"
 
 ## slam mode in {mono, bimono, nofov, monovio, bimonovio}
 slam_mode : "bimonovio"
@@ -32,7 +32,7 @@ tracker: "klt"
 ## LocalMap parameters
 min_kf_number: 1                # number of keyframes that are added by default when the map starts
 max_kf_number: 12               # size of the sliding window
-fixed_frame_number: 1         # number of keyframe that will remain static during windowed BA
+fixed_frame_number: 0         # number of keyframe that will remain static during windowed BA
 marginalization: 1              # marginalization of old variables or not
 sparsification: 1             # sparsification of the prior or not   
 
@@ -104,12 +104,12 @@ features_handled:
 
   - label_feature: "pointxd"
     detector_label: "cvFASTFeatureDetector"
-    number_detected_features: 200
+    number_detected_features: 250
     number_kept_features: 600
     n_features_per_cell: 1
     tracker_label: "Point2DFeatureTracker"
-    tracker_height: 24
-    tracker_width: 24
+    tracker_height: 16
+    tracker_width: 16
     tracker_nlvls_pyramids: 3
     tracker_max_err: 30
     matcher_label: "Point2DFeatureMatcher"

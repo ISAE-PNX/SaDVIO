@@ -61,6 +61,7 @@ A few functionnalities are currently being tested, their performances are not gu
 
 Please consider citing one of the related work if you use our system in your research:
 
+```
 @inproceedings{sparsifDebeunne,
   author={Debeunne, César and Vallvé, Joan and Torres, Alex and Vivet, Damien},
   booktitle={2023 IEEE/RSJ International Conference on Intelligent Robots and Systems }, 
@@ -68,11 +69,14 @@ Please consider citing one of the related work if you use our system in your res
   year={2023},
   pages={10716-10722},
 }
+```
 
+```
 @inproceedings{debeunne2023non,
-  title={Non-Recovering Field-of-View Imaging-Based SLAM for Lava Tu es Exploration},
+  title={Non-Recovering Field-of-View Imaging-Based SLAM for Lava Tubes Exploration},
   author={Debeunne, C{\'e}sar and Vivet, Damien and Torres, Alex},
   booktitle={17th Symposium on Advanced Space Technologies in Robotics and Automation (ASTRA)},
   year={2023}
 }
+```
 
