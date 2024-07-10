@@ -412,9 +412,11 @@ bool EUROCGrabber::addNextFrame() {
             std::string path_img1 = _folder_path + "/cam1/data/" + std::to_string((unsigned long long)_cam1_timestamp_queue.front()) + ".png";
             cv::Mat img_left      = cv::imread(path_img0, cv::IMREAD_GRAYSCALE);
             if (img_left.empty()) {
-                std::cout << std::to_string((unsigned long long)_cam0_timestamp_queue.front()) + ".png"  << " not opened " << std::endl;
-                std::cout << _folder_path << std::endl;
-                std::cout << path_img0 << std::endl;
+                std::cerr << path_img0 << " not opened " << std::endl;
+                _cam0_timestamp_queue.pop();
+                _cam0_filename_queue.pop();
+                _cam1_timestamp_queue.pop();
+                _cam1_filename_queue.pop();
                 return false;
             }
             cv::Mat img_right = cv::imread(path_img1, cv::IMREAD_GRAYSCALE);
