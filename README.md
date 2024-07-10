@@ -53,6 +53,14 @@ You can then run this executable, adding the folder of the config files and the 
 ``` 
  Your dataset must be at the [EUROC dataset](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) format and you must edit properly the files in the [config folder](ros/config).
 
+## Docker install
+
+We have included a docker installation of SaDVIO in the [docker](docker) folder. Simply run the run.sh script to build and run the image. A sequence of the EUROC dataset is downloaded for a first try. To run it, do the following:
+```
+cd SaDVIO/cpp/build/
+./isaeslam "/root/SaDVIO/ros/config" "/root/V1_01_easy/mav0/"
+```
+
 # Disclaimer
 
 A few functionnalities are currently being tested, their performances are not guaranteed and were not presented in any paper:
