@@ -1042,7 +1042,13 @@ bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> 
     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, 12);
     J.block(0, 0, 6, 6) = block_relpose._jacobians.at(0);
     J.block(0, 6, 6, 6) = block_relpose._jacobians.at(1);
-    Eigen::MatrixXd cov = J * _marginalization->_Sigma_k * J.transpose();
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(_marginalization->_Ak);
+    Eigen::MatrixXd Ak_inv =
+        saes.eigenvectors() *
+        Eigen::VectorXd((saes.eigenvalues().array() > 1e-12).select(saes.eigenvalues().array().inverse(), 0))
+            .asDiagonal() *
+        saes.eigenvectors().transpose();
+    Eigen::MatrixXd cov = J * Ak_inv * J.transpose();
     frame0->setdTPrior(T_a_b, cov.inverse());
 
     return true;
