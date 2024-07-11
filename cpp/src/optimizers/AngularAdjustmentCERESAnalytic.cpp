@@ -906,4 +906,146 @@ bool AngularAdjustmentCERESAnalytic::landmarkOptimizationNoFov(std::shared_ptr<F
     return true;
 }
 
+bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) {
+
+    // Setup the maps for memory gestion
+    _map_lmk_ptpar.clear();
+    _map_frame_posepar.clear();
+    _map_frame_velpar.clear();
+    _map_frame_dbapar.clear();
+    _map_frame_dbgpar.clear();
+
+    // Select the nodes to marginalize / keep
+    _marginalization->preMarginalizeRelative(frame0, frame1);
+
+    // Create pose parameters for the frames
+    _map_frame_posepar.emplace(frame0, PoseParametersBlock(Eigen::Affine3d::Identity()));
+    _map_frame_posepar.emplace(frame1, PoseParametersBlock(Eigen::Affine3d::Identity()));
+
+    // Create Marginalization Blocks with pre-integration factors in the case of VIO
+    if (frame0->getIMU() && frame1->getIMU()) {
+
+        // Create velo and bias parameters for both frames
+        _map_frame_velpar.emplace(frame0, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
+        _map_frame_dbapar.emplace(frame0, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
+        _map_frame_dbgpar.emplace(frame0, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
+        _map_frame_velpar.emplace(frame1, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
+        _map_frame_dbapar.emplace(frame1, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
+        _map_frame_dbgpar.emplace(frame1, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
+
+        // Parameters of marginalization blocks (the variables are stored in the order v0, v1, ba0, bg0, ba1, bg0)
+        std::vector<double *> parameter_blocks;
+        std::vector<int> parameter_idx;
+
+        // For the frames
+        parameter_idx.push_back(_marginalization->_map_frame_idx.at(frame0));
+        parameter_blocks.push_back(_map_frame_posepar.at(frame0).values());
+        parameter_idx.push_back(_marginalization->_map_frame_idx.at(frame1));
+        parameter_blocks.push_back(_map_frame_posepar.at(frame1).values());
+
+        // For the velocities
+        parameter_idx.push_back(_marginalization->_n);
+        parameter_blocks.push_back(_map_frame_velpar.at(frame0).values());
+        parameter_idx.push_back(_marginalization->_n + 3);
+        parameter_blocks.push_back(_map_frame_velpar.at(frame1).values());
+
+        // For the biases
+        parameter_idx.push_back(_marginalization->_n + 6);
+        parameter_blocks.push_back(_map_frame_dbapar.at(frame0).values());
+        parameter_idx.push_back(_marginalization->_n + 9);
+        parameter_blocks.push_back(_map_frame_dbgpar.at(frame0).values());
+
+        // Add the pre integration factor in the marginalization scheme
+        ceres::CostFunction *cost_fct = new IMUFactor(frame0->getIMU(), frame1->getIMU());
+        _marginalization->addMarginalizationBlock(
+            std::make_shared<MarginalizationBlockInfo>(cost_fct, parameter_idx, parameter_blocks));
+
+        // Parameters of marginalization blocks
+        std::vector<double *> parameter_blocks_b;
+        std::vector<int> parameter_idx_b;
+
+        // For the biases
+        parameter_idx_b.push_back(_marginalization->_n + 6);
+        parameter_blocks_b.push_back(_map_frame_dbapar.at(frame0).values());
+        parameter_idx_b.push_back(_marginalization->_n + 9);
+        parameter_blocks_b.push_back(_map_frame_dbgpar.at(frame0).values());
+        parameter_idx_b.push_back(_marginalization->_n + 12);
+        parameter_blocks_b.push_back(_map_frame_dbapar.at(frame1).values());
+        parameter_idx_b.push_back(_marginalization->_n + 15);
+        parameter_blocks_b.push_back(_map_frame_dbgpar.at(frame1).values());
+
+        // Add the bias random walk factor in the marginalization scheme
+        ceres::CostFunction *cost_fct_b = new IMUBiasFactor(frame0->getIMU(), frame1->getIMU());
+        _marginalization->addMarginalizationBlock(
+            std::make_shared<MarginalizationBlockInfo>(cost_fct_b, parameter_idx_b, parameter_blocks_b));
+    }
+
+    // Create Marginalization Blocks with landmark to marginalize
+    for (auto tlmk : _marginalization->_lmk_to_marg) {
+        for (auto lmk : tlmk.second) {
+            _map_lmk_ptpar.emplace(lmk, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
+            // For each feature on the frame
+            for (auto feature : lmk->getFeatures()) {
+                if (feature.lock()->getSensor()->getFrame() == frame0) {
+
+                    // Compute index and block vectors for reprojection factor
+                    std::vector<double *> parameter_blocks;
+                    std::vector<int> parameter_idx;
+
+                    // For the frame
+                    parameter_idx.push_back(_marginalization->_map_frame_idx.at(frame0));
+                    parameter_blocks.push_back(_map_frame_posepar.at(frame0).values());
+
+                    // For the lmk
+                    parameter_idx.push_back(_marginalization->_map_lmk_idx.at(lmk));
+                    parameter_blocks.push_back(_map_lmk_ptpar.at(lmk).values());
+
+                    // Add the angular factor in the marginalization scheme
+                    ceres::CostFunction *cost_fct =
+                        new AngularErrCeres_pointxd_dx(feature.lock()->getBearingVectors().at(0),
+                                                       feature.lock()->getSensor()->getFrame2SensorTransform(),
+                                                       frame0->getWorld2FrameTransform(),
+                                                       lmk->getPose().translation(),
+                                                       (1 / feature.lock()->getSensor()->getFocal()));
+                    _marginalization->addMarginalizationBlock(
+                        std::make_shared<MarginalizationBlockInfo>(cost_fct, parameter_idx, parameter_blocks));
+                }
+            }
+        }
+    }
+
+    // Reset the marginalization scheme if it failed
+    if (!_marginalization->computeSchurComplement()) {
+        _marginalization->_lmk_to_keep.clear();
+        _marginalization->_marginalization_blocks.clear();
+        _marginalization_last->_lmk_to_keep.clear();
+        return false;
+    }
+
+    // Compute the relative pose factor with NFR
+
+    // Build a marginalization block to compute the jacobian
+    Eigen::Affine3d T_w_a         = frame0->getFrame2WorldTransform();
+    Eigen::Affine3d T_w_b         = frame1->getFrame2WorldTransform();
+    Eigen::Affine3d T_a_b         = T_w_a.inverse() * T_w_b;
+    ceres::CostFunction *cost_fct = new Relative6DPose(T_w_a, T_w_b, T_a_b, Vector6d::Ones().asDiagonal());
+    std::vector<double *> parameter_blocks;
+    std::vector<int> parameter_idx;
+    parameter_blocks.push_back(_map_frame_posepar.at(frame0).values());
+    parameter_idx.push_back(0);
+    parameter_blocks.push_back(_map_frame_posepar.at(frame1).values());
+    parameter_idx.push_back(0);
+    MarginalizationBlockInfo block_relpose(cost_fct, parameter_idx, parameter_blocks);
+
+    // Compute the covariance of the non linear factor
+    block_relpose.Evaluate();
+    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, 12);
+    J.block(0, 0, 6, 6) = block_relpose._jacobians.at(0);
+    J.block(0, 6, 6, 6) = block_relpose._jacobians.at(1);
+    Eigen::MatrixXd cov = J * _marginalization->_Sigma_k * J.transpose();
+    frame0->setdTPrior(T_a_b, cov.inverse());
+
+    return true;
+}
+
 } // namespace isae

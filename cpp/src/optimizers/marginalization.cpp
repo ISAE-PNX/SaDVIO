@@ -40,7 +40,7 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
     _m           = 6;
     int last_idx = 6;
 
-    // We had velocity and bias in the case of VIO
+    // We add velocity and bias in the case of VIO
     if (frame0->getIMU()) {
         _m += 9;
         last_idx += 9;
@@ -62,7 +62,7 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
                 if (f.lock()->getSensor()->getFrame() != frame0) {
                     is_lonely = false;
 
-                // We only include landmarks that have stereo factors (for matrix invertibility)
+                    // We only include landmarks that have stereo factors (for matrix invertibility)
                 } else {
                     num_cam += 1;
                 }
@@ -174,7 +174,8 @@ void Marginalization::computeInformationAndGradient(std::vector<std::shared_ptr<
                             A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
                         } else {
                             A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
-                            A.block(idx_j, idx_i, size_j, size_i) = A.block(idx_i, idx_j, size_i, size_j).transpose().eval();
+                            A.block(idx_j, idx_i, size_j, size_i) =
+                                A.block(idx_i, idx_j, size_i, size_j).transpose().eval();
                         }
                         mtx.unlock();
                     }
@@ -523,6 +524,58 @@ bool Marginalization::computeJacobiansAndResiduals() {
     _marginalization_residual = (-1) * Sigma_sqrt.asDiagonal() * _U.transpose() * _bk;
 
     return true;
+}
+
+void Marginalization::preMarginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) {
+
+    // Reset variables
+    _frame_to_marg = nullptr;
+    _frame_to_keep = nullptr;
+    _lmk_to_keep.clear();
+    _lmk_to_marg.clear();
+    _map_frame_idx.clear();
+    _map_lmk_idx.clear();
+    _map_lmk_inf.clear();
+    _map_lmk_prior.clear();
+
+    // We keep only the two poses 
+    _n = 12;
+    _map_frame_idx.emplace(frame0, 0);
+    _map_frame_idx.emplace(frame1, 6);
+    int last_idx = 12;
+    _m           = 0;
+
+    // Set to marginalize bias and velocity in VIO case
+    if (frame0->getIMU()) {
+        _m += 18;
+        last_idx += 18;
+    }
+
+    // Set to marginalize all the common landamrks between the frames
+    for (auto tlmks : frame0->getLandmarks()) {
+
+        // For all type of landmark
+        for (auto lmk : tlmks.second) {
+
+            if (lmk->isOutlier() || !lmk->isInMap() || !lmk->isInitialized())
+                continue;
+            for (auto f : lmk->getFeatures()) {
+
+                // If the landmark is linked to frame1 it is marginalized
+                if (f.lock()->getSensor()->getFrame() == frame1) {
+
+                    _lmk_to_marg[tlmks.first].push_back(lmk);
+                    lmk->setMarg();
+                    (tlmks.first == "pointxd" ? _m += 3 : _m += 6);
+                    _map_lmk_idx.emplace(lmk, last_idx);
+                    (tlmks.first == "pointxd" ? last_idx += 3 : last_idx += 6);
+
+                } else {
+                    continue;
+                }
+            }
+        }
+    }
 }
 
 } // namespace isae

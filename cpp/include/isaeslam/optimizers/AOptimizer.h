@@ -40,6 +40,8 @@ class AOptimizer {
         return true;
     };
 
+    virtual bool marginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) { return true; }
+
   protected:
     bool isMovingFrame(const std::shared_ptr<isae::Frame> &frame,
                        const std::vector<std::shared_ptr<isae::Frame>> &frame_vector);

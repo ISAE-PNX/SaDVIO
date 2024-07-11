@@ -134,7 +134,7 @@ bool AOptimizer::landmarkOptimization(std::shared_ptr<Frame> &frame) {
             if (!ldmk->isInitialized() || ldmk->isOutlier())
                 continue;
 
-            bool can_be_updated = ldmk->sanityCheck();; // Only inliers can be updated
+            bool can_be_updated = ldmk->sanityCheck(); // Only inliers can be updated
 
             if (can_be_updated) {
                 if (ldmk_list.first == "pointxd") {
@@ -143,7 +143,6 @@ bool AOptimizer::landmarkOptimization(std::shared_ptr<Frame> &frame) {
                     ldmk->setPose(ldmk->getPose() * _map_lmk_posepar.at(ldmk).getPose());
                 }
             }
-            
         }
     }
     return true;
@@ -325,7 +324,7 @@ bool AOptimizer::localMapBA(std::shared_ptr<isae::LocalMap> &local_map, const si
 }
 
 bool AOptimizer::localMapVIOptimization(std::shared_ptr<isae::LocalMap> &local_map, const size_t fixed_sized_number) {
-    
+
     // Set maps for bookeeping;
     _map_lmk_ptpar.clear();
     _map_frame_posepar.clear();
@@ -361,7 +360,6 @@ bool AOptimizer::localMapVIOptimization(std::shared_ptr<isae::LocalMap> &local_m
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-
 
     // Update state
     for (auto &frame_posepar : _map_frame_posepar) {

@@ -75,12 +75,20 @@ class Frame : public std::enable_shared_from_this<Frame> {
     // Handles a prior on T_f_w
     bool hasPrior() const { return _has_prior; }
     void setPrior(Eigen::Affine3d T_prior, Vector6d inf_prior) {
-        _has_prior = true;
-        _T_prior   = T_prior;
-        _inf_prior = inf_prior;
+        _has_prior   = true;
+        _T_prior     = T_prior;
+        _inf_T_prior = inf_prior;
     }
     Eigen::Affine3d getPrior() const { return _T_prior; }
-    Vector6d getInfPrior() const { return _inf_prior; }
+    Vector6d getInfPrior() const { return _inf_T_prior; }
+
+    // Handles relative pose factor
+    void setdTPrior(Eigen::Affine3d dT_prior, Eigen::MatrixXd inf_dT_prior) {
+        _dT_prior     = dT_prior;
+        _inf_dT_prior = inf_dT_prior;
+    }
+    Eigen::Affine3d getdTPrior() const { return _dT_prior; }
+    Eigen::MatrixXd getInfdTPrior() const { return _inf_dT_prior; }
 
   private:
     Eigen::Affine3d _T_f_w;
@@ -94,7 +102,9 @@ class Frame : public std::enable_shared_from_this<Frame> {
     bool _has_prior = false;
 
     Eigen::Affine3d _T_prior;
-    Vector6d _inf_prior;
+    Vector6d _inf_T_prior;
+    Eigen::Affine3d _dT_prior;
+    Eigen::MatrixXd _inf_dT_prior;
 
     mutable std::mutex _frame_mtx;
 };

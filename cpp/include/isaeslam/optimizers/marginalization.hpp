@@ -8,7 +8,7 @@
 
 namespace isae {
 
-// Marginalization block that stores a factor and the indices of the variables involved 
+// Marginalization block that stores a factor and the indices of the variables involved
 struct MarginalizationBlockInfo {
 
     MarginalizationBlockInfo(ceres::CostFunction *cost_function,
@@ -29,11 +29,13 @@ struct MarginalizationBlockInfo {
 
 class Marginalization {
   public:
-
     // Select all the variables to keep and to marginalize in the Markov Blanket
     void preMarginalize(std::shared_ptr<Frame> &frame0,
                         std::shared_ptr<Frame> &frame1,
                         std::shared_ptr<Marginalization> &marginalization_last);
+    
+    // Select the variables to marginalize to compute relative pose factors
+    void preMarginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1);
 
     void addMarginalizationBlock(std::shared_ptr<MarginalizationBlockInfo> marginalization_block) {
         _marginalization_blocks.push_back(marginalization_block);
@@ -168,7 +170,7 @@ class MarginalizationFactor : public ceres::CostFunction {
                         jacobians[block_id], n, 3);
                     jacobian.setZero();
                     jacobian.leftCols(3) = _marginalization_info->_marginalization_jacobian.middleCols(
-                        _marginalization_info->_map_frame_idx.at(_marginalization_info->_frame_to_keep)+6, 3);
+                        _marginalization_info->_map_frame_idx.at(_marginalization_info->_frame_to_keep) + 6, 3);
                 }
                 block_id++;
                 if (jacobians[block_id]) {
@@ -177,7 +179,7 @@ class MarginalizationFactor : public ceres::CostFunction {
                         jacobians[block_id], n, 3);
                     jacobian.setZero();
                     jacobian.leftCols(3) = _marginalization_info->_marginalization_jacobian.middleCols(
-                        _marginalization_info->_map_frame_idx.at(_marginalization_info->_frame_to_keep)+9, 3);
+                        _marginalization_info->_map_frame_idx.at(_marginalization_info->_frame_to_keep) + 9, 3);
                 }
                 block_id++;
                 if (jacobians[block_id]) {
@@ -186,7 +188,7 @@ class MarginalizationFactor : public ceres::CostFunction {
                         jacobians[block_id], n, 3);
                     jacobian.setZero();
                     jacobian.leftCols(3) = _marginalization_info->_marginalization_jacobian.middleCols(
-                        _marginalization_info->_map_frame_idx.at(_marginalization_info->_frame_to_keep)+12, 3);
+                        _marginalization_info->_map_frame_idx.at(_marginalization_info->_frame_to_keep) + 12, 3);
                 }
                 block_id++;
             }

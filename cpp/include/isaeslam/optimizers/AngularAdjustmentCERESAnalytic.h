@@ -13,6 +13,8 @@ class AngularAdjustmentCERESAnalytic : public AOptimizer {
     virtual bool
     marginalize(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1, bool enable_sparsif) override;
 
+    virtual bool marginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) override;
+
     virtual bool landmarkOptimizationNoFov(std::shared_ptr<Frame> &f,
                                            std::shared_ptr<Frame> &fp,
                                            Eigen::Affine3d &T_cam0_cam0p,
