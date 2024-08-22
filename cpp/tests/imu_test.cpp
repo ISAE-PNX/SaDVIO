@@ -1,5 +1,6 @@
 #include <fstream>
 #include <gtest/gtest.h>
+#include <random>
 
 #include "isaeslam/data/frame.h"
 #include "isaeslam/data/maps/localmap.h"
@@ -157,7 +158,7 @@ TEST_F(ImuTest, ImuNewMeas) {
     ASSERT_EQ((dp - _imu2->getDeltaP()).norm(), 0);
 }
 
-// Here we use the same test as in gtsam:
+// Here we use the same tests as in gtsam:
 // https://github.com/borglab/gtsam/blob/develop/gtsam/navigation/tests/testImuFactor.cpp
 
 TEST_F(ImuTest, checkCov) {
@@ -189,6 +190,140 @@ TEST_F(ImuTest, checkCov) {
         0, 0, 0, 0, 3.47222e-07, 0, 0, 5.00868e-05, 0,  //
         0, 0, 0, 0, 0, 3.47222e-07, 0, 0, 5.00868e-05;
     ASSERT_NEAR((expected_cov - _imu1->getCov()).trace(), 0, 1e-9);
+}
+
+TEST_F(ImuTest, accelerating) {
+    const double a = 0.2, v = 50;
+
+    // Set the initial pose
+    Eigen::Vector3d initial_velocity(v, 0, 0);
+    Eigen::Affine3d initial_pose;
+    initial_pose.matrix() << 1, 0, 0, 10, //
+        0, 1, 0, 20,                      //
+        0, 0, 1, 0,                       //
+        0, 0, 0, 1;
+
+    // We integrate the IMU
+    Eigen::Vector3d vel, gyr, acc, ba, bg;
+    vel << v, 0.0, 0.0;
+    gyr.setZero();
+    acc << a, 0.0, 9.81;
+    ba.setZero();
+    bg.setZero();
+    double dt         = 0.01;
+    _imu_cfg->rate_hz = 100;
+
+    std::shared_ptr<IMU> cur_imu     = std::shared_ptr<IMU>(new IMU(_imu_cfg, acc, gyr));
+    std::shared_ptr<Frame> cur_frame = std::shared_ptr<Frame>(new Frame());
+    cur_frame->init(cur_imu, 1e9);
+    cur_frame->setWorld2FrameTransform(initial_pose.inverse());
+    cur_frame->setKeyFrame();
+    cur_imu->setBa(ba);
+    cur_imu->setBg(bg);
+    cur_imu->setVelocity(vel);
+    std::shared_ptr<IMU> last_imu = cur_imu;
+
+    std::shared_ptr<Frame> lastKF = cur_frame;
+
+    for (int i = 1; i < 301; i++) {
+        cur_imu = std::shared_ptr<IMU>(new IMU(_imu_cfg, acc, gyr));
+        cur_imu->setLastIMU(last_imu);
+        cur_imu->setLastKF(lastKF);
+
+        // Create frame and process IMU
+        cur_frame = std::shared_ptr<Frame>(new Frame());
+        cur_frame->init(cur_imu, 1e9 + (dt * i) * 1e9);
+        cur_imu->processIMU();
+
+        // Set last imu
+        last_imu = cur_imu;
+    }
+
+    // Save predictions
+    Eigen::MatrixXd prediction_cov = last_imu->getCov();
+    Eigen::Vector3d prediction_r = geometry::log_so3(last_imu->getDeltaR());
+    Eigen::Vector3d prediction_v = last_imu->getDeltaV();
+    Eigen::Vector3d prediction_p = last_imu->getDeltaP();
+
+    // Compute covariance with MC
+    std::vector<Eigen::Vector3d> v_vec, p_vec, r_vec;
+    Eigen::Vector3d v_mean, p_mean, r_mean;
+    r_mean = Eigen::Vector3d::Zero();
+    v_mean = Eigen::Vector3d::Zero();
+    p_mean = Eigen::Vector3d::Zero();
+
+    int N = 100;
+    for (int k = 0; k < N; k++) {
+
+        // We create noisy IMU measurements
+        // random device class instance, source of 'true' randomness for initializing random seed
+        std::random_device rd;
+
+        // Mersenne twister PRNG, initialized with seed from previous random device instance
+        std::mt19937 gen(rd());
+        std::normal_distribution<double> d_acc(0, _imu_cfg->acc_noise / std::sqrt(dt));
+        std::normal_distribution<double> d_gyr(0, _imu_cfg->gyr_noise / std::sqrt(dt));
+        Eigen::Vector3d acc_noise = Eigen::Vector3d(d_acc(gen), d_acc(gen), d_acc(gen));
+        Eigen::Vector3d gyr_noise = Eigen::Vector3d(d_gyr(gen), d_gyr(gen), d_gyr(gen));
+
+        // We set the first IMU
+        std::shared_ptr<IMU> cur_imu     = std::shared_ptr<IMU>(new IMU(_imu_cfg, acc + acc_noise, gyr + gyr_noise));
+        std::shared_ptr<Frame> cur_frame = std::shared_ptr<Frame>(new Frame());
+        cur_frame->init(cur_imu, 1e9);
+        cur_frame->setWorld2FrameTransform(initial_pose.inverse());
+        cur_frame->setKeyFrame();
+        cur_imu->setBa(ba);
+        cur_imu->setBg(bg);
+        cur_imu->setVelocity(vel);
+        std::shared_ptr<IMU> last_imu = cur_imu;
+
+        std::shared_ptr<Frame> lastKF = cur_frame;
+
+        // We integrate during 3 seconds
+        for (int i = 1; i < 301; i++) {
+            acc_noise = Eigen::Vector3d(d_acc(gen), d_acc(gen), d_acc(gen));
+            gyr_noise = Eigen::Vector3d(d_gyr(gen), d_gyr(gen), d_gyr(gen));
+            cur_imu   = std::shared_ptr<IMU>(new IMU(_imu_cfg, acc + acc_noise, gyr + gyr_noise));
+            cur_imu->setLastIMU(last_imu);
+            cur_imu->setLastKF(lastKF);
+
+            // Create frame and process IMU
+            cur_frame = std::shared_ptr<Frame>(new Frame());
+            cur_frame->init(cur_imu, 1e9 + (dt * i) * 1e9);
+            cur_imu->processIMU();
+
+            // Set last imu
+            last_imu = cur_imu;
+        }
+
+        // Compute deltas and fill vectors for statistics
+        Eigen::Vector3d v = last_imu->getDeltaV();
+        Eigen::Vector3d p = last_imu->getDeltaP();
+        Eigen::Vector3d r = geometry::log_so3(last_imu->getDeltaR());
+        v_vec.push_back(v);
+        p_vec.push_back(p);
+        r_vec.push_back(r);
+        v_mean += v;
+        p_mean += p;
+        r_mean += r;
+    }
+
+    // Compute statistics
+    v_mean /= (double)N;
+    p_mean /= (double)N;
+    r_mean /= (double)N;
+    Eigen::MatrixXd Sigma = Eigen::MatrixXd::Zero(9, 9);
+    for (int k = 0; k < N; k++) {
+        Eigen::VectorXd xi = Eigen::VectorXd::Zero(9);
+        xi.block(0, 0, 3, 1)   = r_vec.at(k) - prediction_r;
+        xi.block(3, 0, 3, 1)   = v_vec.at(k) - prediction_v;
+        xi.block(6, 0, 3, 1)   = p_vec.at(k) - prediction_p;
+        Sigma += xi * xi.transpose();
+    }
+
+    Sigma /= (double)(N - 1);
+    ASSERT_NEAR((Sigma - prediction_cov).trace(), 0, 1e-3);
+
 }
 
 TEST_F(ImuTest, checkJacobiansBiasGyr) {
@@ -727,7 +862,7 @@ TEST_F(ImuTest, TestPreInteg) {
 
     // Expected pre-integrated values
     Eigen::Vector3d expectedDeltaR1(w * deltaT, 0.0, 0.0);
-    Eigen::Vector3d expectedDeltaP1(0.5 * a * deltaT*deltaT, 0, 0);
+    Eigen::Vector3d expectedDeltaP1(0.5 * a * deltaT * deltaT, 0, 0);
     Eigen::Vector3d expectedDeltaV1(0.05, 0.0, 0.0);
 
     // Set Frames and IMU
@@ -753,8 +888,8 @@ TEST_F(ImuTest, TestPreInteg) {
     // Integrate again
     Eigen::Vector3d expectedDeltaR2(2.0 * 0.5 * M_PI / 100.0, 0.0, 0.0);
     Eigen::Vector3d expectedDeltaP2(0.025 + expectedDeltaP1(0) + 0.5 * 0.1 * 0.5 * 0.5, 0, 0);
-    Eigen::Vector3d expectedDeltaV2 = Eigen::Vector3d(0.05, 0.0, 0.0) +
-                                geometry::exp_so3(expectedDeltaR1) * measured_acc * 0.5;
+    Eigen::Vector3d expectedDeltaV2 =
+        Eigen::Vector3d(0.05, 0.0, 0.0) + geometry::exp_so3(expectedDeltaR1) * measured_acc * 0.5;
 
     _imu2 = std::shared_ptr<IMU>(new IMU(_imu_cfg, measured_acc, measured_gyr));
     _imu2->setLastIMU(_imu1);

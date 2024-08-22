@@ -31,7 +31,7 @@ bool IMU::processIMU() {
     Eigen::Matrix3d Jrk = geometry::so3_rightJacobian((_last_IMU->getGyr() - _last_kf->getIMU()->getBg()) * dt);
 
     // Velocity update
-    Eigen::Matrix3d R_w_fp = _last_IMU->getFrame()->getWorld2FrameTransform().rotation().transpose();
+    Eigen::Matrix3d R_w_fp = _last_IMU->getFrame()->getFrame2WorldTransform().rotation();
     _v                     = _last_IMU->getVelocity() + R_w_fp * dv + g * dt;
 
     // Pose update
