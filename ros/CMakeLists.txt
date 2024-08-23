@@ -2,7 +2,7 @@
 SET(CMAKE_BUILD_TYPE RELEASE) # DEBUG / RELEASE
 
 # set(CMAKE_BUILD_TYPE "DEBUG")
-project(isae_slam)
+project(isae_slam_ros)
 cmake_minimum_required(VERSION 3.14)
 
 # -------------------------------------------------------------------

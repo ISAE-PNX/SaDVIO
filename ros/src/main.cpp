@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
 
     // Create the SLAM parameter object
     std::shared_ptr<isae::SLAMParameters> slam_param =
-        std::make_shared<isae::SLAMParameters>(ament_index_cpp::get_package_share_directory("isae_slam") + "/config");
+        std::make_shared<isae::SLAMParameters>(ament_index_cpp::get_package_share_directory("isae_slam_ros") + "/config");
 
     // Create the ROS Visualizer
     std::shared_ptr<RosVisualizer> prosviz;
