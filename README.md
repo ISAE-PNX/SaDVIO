@@ -26,11 +26,11 @@ Once these are all installed, use the following commands to build:
 cd ~/your_ws/src
 git clone https://github.com/ISAE-PNX/SaDVIO.git
 cd ..
-colcon build --symlink-install --packages-select isae_slam
+colcon build --symlink-install --packages-select isae_slam_ros
 ```
 Then launch the program with:
 ```
-ros2 launch isae_slam isae_slam.xml
+ros2 launch isae_slam_ros isae_slam.xml
 ```
 You can then play a rosbag with the topics specified in the [config](ros/config) files. 
 
