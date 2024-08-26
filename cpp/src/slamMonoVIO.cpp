@@ -124,11 +124,12 @@ bool SLAMMonoVIO::init() {
         }
         avg_parallax = avg_parallax * 180 / M_PI;
 
-        if (avg_parallax > 3)
+        if (avg_parallax > 4) 
             ready_to_init = true;
-
-        // Compute current pose (with an arbitrary 1m scale)
+        
+        // Compute current pose (with an arbitrary 10 cm scale)
         Eigen::Affine3d T_w_f = getLastKF()->getFrame2WorldTransform() * T_last_curr;
+        T_w_f.translation() /= 10;
         _frame->setWorld2FrameTransform(T_w_f.inverse());
 
         // Send the frame to the viewer
