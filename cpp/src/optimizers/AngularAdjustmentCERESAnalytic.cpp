@@ -131,13 +131,14 @@ uint AngularAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &proble
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame()) {
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
 
                     if (_map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         _map_frame_posepar.emplace(frame, PoseParametersBlock(Eigen::Affine3d::Identity()));
@@ -177,13 +178,14 @@ uint AngularAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &proble
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame()) {
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
 
                     if (_map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         _map_frame_posepar.emplace(frame, PoseParametersBlock(Eigen::Affine3d::Identity()));
@@ -219,8 +221,6 @@ uint AngularAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &proble
     uint nb_residuals = 0;
 
     // Add parameter block and ordering for each frame parameter
-    // ceres::Manifold *nullptr = new SE3RightParameterization();
-
     for (size_t i = 0; i < frame_vector.size(); i++) {
         _map_frame_posepar.emplace(frame_vector.at(i), PoseParametersBlock(Eigen::Affine3d::Identity()));
     }
@@ -267,13 +267,14 @@ uint AngularAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &proble
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame()) {
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
 
                     nb_residuals++;
 
@@ -310,13 +311,14 @@ uint AngularAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &proble
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame()) {
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
 
                     nb_residuals++;
 
@@ -906,7 +908,8 @@ bool AngularAdjustmentCERESAnalytic::landmarkOptimizationNoFov(std::shared_ptr<F
     return true;
 }
 
-bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) {
+bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> &frame0,
+                                                         std::shared_ptr<Frame> &frame1) {
 
     // Setup the maps for memory gestion
     _map_lmk_ptpar.clear();
@@ -1039,7 +1042,7 @@ bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> 
 
     // Compute the covariance of the non linear factor
     block_relpose.Evaluate();
-    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, 12);
+    Eigen::MatrixXd J   = Eigen::MatrixXd::Zero(6, 12);
     J.block(0, 0, 6, 6) = block_relpose._jacobians.at(0);
     J.block(0, 6, 6, 6) = block_relpose._jacobians.at(1);
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(_marginalization->_Ak);

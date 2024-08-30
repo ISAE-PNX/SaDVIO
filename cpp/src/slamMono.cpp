@@ -202,9 +202,8 @@ bool SLAMMono::frontEndStep() {
     }
 
     if (shouldInsertKeyframe(_frame)) {
-        _frame->unsetKeyFrame();
 
-        // Frame is added, marginalization flag is raised if necessary
+        // Keyrame is added
         _nkeyframes++;
 
         // Landmark Initialization:
@@ -258,7 +257,6 @@ bool SLAMMono::backEndStep() {
 
         // Add frame to local map
         _local_map->addFrame(_frame_to_optim);
-        _frame->setKeyFrame();
 
         // 3D Mesh update
         if (_slam_param->_config.mesh3D) {

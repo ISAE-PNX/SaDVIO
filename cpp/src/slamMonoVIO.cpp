@@ -509,7 +509,6 @@ bool SLAMMonoVIO::frontEndStep() {
 
     if (shouldInsertKeyframe(_frame)) {
         _nkeyframes++;
-        _frame->unsetKeyFrame();
 
         // An IMU is set to this KF if there is not one already
         if (!_frame->getIMU()) {
@@ -589,7 +588,6 @@ bool SLAMMonoVIO::backEndStep() {
 
         // Add frame to local map
         _local_map->addFrame(_frame_to_optim);
-        _frame_to_optim->setKeyFrame();
 
         // Marginalization (+ sparsification) of the last frame
         if (_local_map->getMarginalizationFlag()) {
@@ -611,7 +609,7 @@ bool SLAMMonoVIO::backEndStep() {
         _avg_wdw_opt_t = (_avg_wdw_opt_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
 
         // Update current IMU biases after optimization
-        // _frame_to_optim->getIMU()->updateBiases();
+        _frame_to_optim->getIMU()->updateBiases();
 
         // profiling
         profiling();

@@ -147,9 +147,8 @@ bool SLAMBiMono::frontEndStep() {
     }
 
     if (shouldInsertKeyframe(_frame)) {
-        _frame->unsetKeyFrame();
-
-        // Frame is added, marginalization flag is raised if necessary
+        
+        // Frame is added
         _nkeyframes++;
 
         // Repopulate in the case of klt tracking

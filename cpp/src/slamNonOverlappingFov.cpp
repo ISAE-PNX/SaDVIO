@@ -320,7 +320,6 @@ bool SLAMNonOverlappingFov::backEndStep() {
 
         // Frame is added, marginalization flag is raised if necessary
         _local_map->addFrame(_frame_to_optim);
-        _frame_to_optim->setKeyFrame();
 
         // 3D Mesh update
         if (_slam_param->_config.mesh3D) {

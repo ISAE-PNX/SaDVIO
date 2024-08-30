@@ -443,7 +443,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
         _frame->setKeyFrame();
 
     if (shouldInsertKeyframe(_frame)) {
-        _frame->unsetKeyFrame(); // Dirty as hell, to fix
         _nkeyframes++;
 
         // An IMU is set to this KF if there is not one already
@@ -466,9 +465,9 @@ bool SLAMBiMonoVIO::frontEndStep() {
             _frame->setWorld2FrameTransform(T_f_w);
         }
 
-        _frame->getIMU()->estimateTransform(_last_IMU->getLastKF(), _frame, dT);
-
+        // To debug when prediction fails 
         if (!good_it) {
+            _frame->getIMU()->estimateTransform(_last_IMU->getLastKF(), _frame, dT);
             std::cout << "IMU dT : \n" << dT.matrix() << std::endl;
             std::cout << "pnp dT : \n"
                       << (getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).matrix()
@@ -559,7 +558,6 @@ bool SLAMBiMonoVIO::backEndStep() {
 
         // Add frame to local map
         _local_map->addFrame(_frame_to_optim);
-        _frame_to_optim->setKeyFrame();
 
         // Marginalization (+ sparsification) of the last frame
         isae::timer::tic();

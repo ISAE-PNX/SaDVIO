@@ -124,13 +124,14 @@ uint BundleAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &problem
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame()) {
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
 
                     if (_map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         _map_frame_posepar.emplace(frame, PoseParametersBlock(Eigen::Affine3d::Identity()));
@@ -166,13 +167,14 @@ uint BundleAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &problem
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame()) {
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
 
                     if (_map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         _map_frame_posepar.emplace(frame, PoseParametersBlock(Eigen::Affine3d::Identity()));
@@ -247,12 +249,14 @@ uint BundleAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &problem
                 std::vector<std::weak_ptr<AFeature>> featuresAssociatedLandmarks = landmark->getFeatures();
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame())
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
+                    }
 
                     nb_residuals++;
 
@@ -285,12 +289,14 @@ uint BundleAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &problem
                 std::vector<std::weak_ptr<AFeature>> featuresAssociatedLandmarks = landmark->getFeatures();
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
+                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    std::shared_ptr<Frame> frame      = cam->getFrame();
 
-                    if (!feature || !feature->getSensor()->getFrame()->isKeyFrame())
+                    // Check the consistency of the frame
+                    if (!feature || !frame->isKeyFrame() ||
+                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
-
-                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
-                    std::shared_ptr<Frame> frame     = cam->getFrame();
+                    }
 
                     nb_residuals++;
 
