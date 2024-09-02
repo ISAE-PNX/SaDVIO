@@ -102,6 +102,7 @@ namespace isae {
 
         // Convert Features to KeyLines
         std::vector<cv::line_descriptor::KeyLine> keyLines;
+        keyLines.reserve(features.size());
         cv::Mat descriptors;
         FeatureToKeyLine(features, keyLines, descriptors, img.cols);
 

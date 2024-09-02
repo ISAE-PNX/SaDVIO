@@ -86,6 +86,8 @@ namespace isae {
         // convert features to keypoints
         std::vector<double> scores;
         std::vector<cv::KeyPoint> kps;
+        kps.reserve(features.size());
+        
         cv::Mat descriptors;
         FeatureToKeypoint(features, kps, descriptors);
 

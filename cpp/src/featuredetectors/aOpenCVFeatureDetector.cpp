@@ -61,6 +61,7 @@ AOpenCVFeatureDetector::detectAndComputeGrid(const cv::Mat &img,
     }
 
     std::vector<cv::KeyPoint> new_keypoints;
+    new_keypoints.reserve(_n_total);
     cv::Mat new_descriptors;
 
     // Define local detection function
@@ -93,6 +94,7 @@ AOpenCVFeatureDetector::detectAndComputeGrid(const cv::Mat &img,
 
                     // Detect the perfect amount of keypoints
                     std::vector<cv::KeyPoint> keypoints_local;
+                    keypoints_local.reserve(_n_per_cell);
                     _detector->detect(img(roi), keypoints_local, updated_mask(roi));
                     retainBest(keypoints_local, n_to_detect);
 
@@ -151,6 +153,8 @@ AOpenCVFeatureDetector::detectAndComputeGrid(const cv::Mat &img,
 void AOpenCVFeatureDetector::computeDescriptor(const cv::Mat &img, std::vector<std::shared_ptr<AFeature>> &features) {
 
     std::vector<cv::KeyPoint> keypoints;
+    keypoints.reserve(features.size());
+
     cv::Mat descriptors;
     FeatureToKeypoint(features, keypoints, descriptors);
     _descriptor->compute(img, keypoints, descriptors);
@@ -166,8 +170,6 @@ void AOpenCVFeatureDetector::computeDescriptor(const cv::Mat &img, std::vector<s
         }
     }
 
-    // remove not described features
-    deleteUndescribedFeatures(features);
 }
 
 void AOpenCVFeatureDetector::retainBest(std::vector<cv::KeyPoint> &_keypoints, int n) {

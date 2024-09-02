@@ -56,7 +56,7 @@ void AFeatureDetector::KeypointToFeature(std::vector<cv::KeyPoint> keypoints,
         points.push_back(point);
 
         if (descriptors.empty()) {
-            std::cerr << "empty descriptor" << std::endl; // features.push_back(std::make_shared<Point2D>(pt));
+            std::cerr << "empty descriptor" << std::endl; 
         } else {
             if (featurelabel == "pointxd")
                 features.push_back(std::make_shared<Point2D>(points, descriptors.row(i), keypoints.at(i).octave));
