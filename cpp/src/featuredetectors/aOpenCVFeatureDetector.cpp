@@ -139,8 +139,7 @@ AOpenCVFeatureDetector::detectAndComputeGrid(const cv::Mat &img,
     if (new_keypoints.empty())
         return new_features;
 
-    // Refine the pixels and compute descriptors
-    subPixelRef(img, new_keypoints);
+    // Compute descriptors
     _descriptor->compute(img, new_keypoints, new_descriptors);
 
     // build new feature vector

@@ -49,10 +49,6 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
                              _termCrit,
                              (cv::OPTFLOW_USE_INITIAL_FLOW + cv::OPTFLOW_LK_GET_MIN_EIGENVALS));
 
-    // Refine the pixels
-    cv::TermCriteria criteria = cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.01);
-    cv::cornerSubPix(sensor2->getRawData(), pts2, cv::Size(3, 3), cv::Size(-1, -1), criteria);
-
     if (backward) {
         // Process the other way: sensor2->sensor1
         cv::calcOpticalFlowPyrLK(sensor2->getRawData(),
