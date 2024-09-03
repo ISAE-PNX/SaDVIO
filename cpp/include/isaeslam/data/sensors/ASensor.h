@@ -94,6 +94,10 @@ class ImageSensor : public ASensor, public std::enable_shared_from_this<ImageSen
     // return sensor rawData
     cv::Mat getRawData() { return _raw_data; }
 
+    // Get and Set img pyramide
+    void setPyr(const std::vector<cv::Mat> &img_pyr) { _img_pyr = img_pyr; }
+    const std::vector<cv::Mat> getPyr() { return _img_pyr; }
+
     // apply CLAHE
     void applyCLAHE(float clahe_clip);
 
@@ -146,11 +150,12 @@ class ImageSensor : public ASensor, public std::enable_shared_from_this<ImageSen
                          double *J_proj_lmk)                       = 0;
 
   protected:
-    Eigen::Matrix3d _calibration; //< intrinsic matrix of the camera (sensor ?)
-    cv::Mat _raw_data;
-    cv::Mat _mask;
-    typed_vec_features _features;
-    bool _has_depth;
+    Eigen::Matrix3d _calibration;  // intrinsic matrix of the camera (sensor ?)
+    cv::Mat _raw_data;             // Raw img data
+    std::vector<cv::Mat> _img_pyr; // Img pyramid for KLT tracking
+    cv::Mat _mask;                 // mask to remove
+    typed_vec_features _features;  // Vector of features
+    bool _has_depth;               // Is it a RGBD ?
 
     std::mutex _cam_mtx;
 };

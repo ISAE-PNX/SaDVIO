@@ -3,6 +3,8 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/video.hpp>
 
+#include <iostream>
+
 namespace isae {
 
 uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
@@ -44,9 +46,23 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
     err.reserve(features_to_track.size());
     errb.reserve(features_to_track.size());
 
+    // Compute pyr
+    if (sensor1->getPyr().empty()) {
+        std::vector<cv::Mat> img_pyr;
+        cv::buildOpticalFlowPyramid(
+            sensor1->getRawData(), img_pyr, {search_width, search_height}, nlvls_pyramids);
+        sensor1->setPyr(img_pyr);
+    } 
+    if (sensor2->getPyr().empty()) {
+        std::vector<cv::Mat> img_pyr;
+        cv::buildOpticalFlowPyramid(
+            sensor2->getRawData(), img_pyr, {search_width, search_height}, nlvls_pyramids);
+        sensor2->setPyr(img_pyr);
+    } 
+
     // Process one way: sensor1->sensor2
-    cv::calcOpticalFlowPyrLK(sensor1->getRawData(),
-                             sensor2->getRawData(),
+    cv::calcOpticalFlowPyrLK(sensor1->getPyr(),
+                             sensor2->getPyr(),
                              pts1,
                              pts2,
                              status,
@@ -58,8 +74,8 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
 
     if (backward) {
         // Process the other way: sensor2->sensor1
-        cv::calcOpticalFlowPyrLK(sensor2->getRawData(),
-                                 sensor1->getRawData(),
+        cv::calcOpticalFlowPyrLK(sensor2->getPyr(),
+                                 sensor1->getPyr(),
                                  pts2,
                                  pts1b,
                                  statusb,
@@ -87,7 +103,7 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
         // Check if keypoints are the same in backward case
         if (backward) {
             if (cv::norm(pts1.at(i) - pts1b.at(i)) > 0.5)
-                continue; 
+                continue;
         }
 
         // Create feature
@@ -97,25 +113,23 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
         std::shared_ptr<AFeature> new_feat = std::make_shared<Point2D>(poses2d);
         features2.push_back(new_feat);
 
-        if (features_to_track.at(i)->getLandmark().lock()){ 
+        if (features_to_track.at(i)->getLandmark().lock()) {
             if (!features_to_track.at(i)->getLandmark().lock()->isOutlier())
                 tracks_with_ldmk.push_back({features_to_track.at(i), new_feat});
-        }
-        else
+        } else
             tracks.push_back({features_to_track.at(i), new_feat});
     }
 
     // Compute descriptors for new tracked features
     _detector->computeDescriptor(sensor2->getRawData(), features2);
 
-    // Set arbitrary descriptors for empty ones 
+    // Set arbitrary descriptors for empty ones
     for (size_t i = 0; i < features2.size(); i++) {
 
-        // Set the descriptor of 
+        // Set the descriptor of
         if (features2[i]->getDescriptor().empty()) {
             features2[i]->setDescriptor(features_to_track.at(i)->getDescriptor());
         }
-        
     }
 
     // add tracked features to sensor 2
