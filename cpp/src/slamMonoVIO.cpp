@@ -368,7 +368,6 @@ bool SLAMMonoVIO::step_init() {
         typed_vec_features new_features;
         if (_slam_param->_config.tracker == "klt") {
             isae::timer::tic();
-            cleanFeatures(_frame);
             new_features  = detectFeatures(_frame->getSensors().at(0));
             _avg_detect_t = (_avg_detect_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         }
@@ -550,7 +549,6 @@ bool SLAMMonoVIO::frontEndStep() {
         typed_vec_features new_features;
         if (_slam_param->_config.tracker == "klt") {
             isae::timer::tic();
-            cleanFeatures(_frame);
             new_features  = detectFeatures(_frame->getSensors().at(0));
             _avg_detect_t = (_avg_detect_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         }

@@ -29,10 +29,11 @@ inline Eigen::Vector3d FromskewMatrix(const Eigen::Matrix3d &skew) {
 
 inline Eigen::Matrix3d so3_rightJacobian(const Eigen::Vector3d &w) {
     double w_norm = w.norm();
+    Eigen::Matrix3d w_skew = skewMatrix(w);
     if (w_norm < 1e-5)
         return Eigen::Matrix3d::Identity();
-    return Eigen::Matrix3d::Identity() - ((1 - cos(w_norm)) / (w_norm * w_norm)) * skewMatrix(w) +
-           ((w_norm - sin(w_norm)) / (w_norm * w_norm * w_norm)) * skewMatrix(w) * skewMatrix(w);
+    return Eigen::Matrix3d::Identity() - ((1 - cos(w_norm)) / (w_norm * w_norm)) * w_skew +
+           ((w_norm - sin(w_norm)) / (w_norm * w_norm * w_norm)) * w_skew * w_skew;
 }
 
 inline Eigen::Matrix3d so3_leftJacobian(const Eigen::Vector3d &w) {

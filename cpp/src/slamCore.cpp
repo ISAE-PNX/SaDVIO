@@ -2,8 +2,7 @@
 
 namespace isae {
 
-SLAMCore::SLAMCore(std::shared_ptr<isae::SLAMParameters> slam_param)
-    : _slam_param(slam_param){
+SLAMCore::SLAMCore(std::shared_ptr<isae::SLAMParameters> slam_param) : _slam_param(slam_param) {
     std::cout << _slam_param->_config.min_kf_number << "," << _slam_param->_config.max_kf_number << ","
               << _slam_param->_config.min_lmk_number << "," << _slam_param->_config.fixed_frame_number << ","
               << _slam_param->_config.min_movement_parallax << "," << _slam_param->_config.max_movement_parallax
@@ -42,37 +41,25 @@ SLAMCore::SLAMCore(std::shared_ptr<isae::SLAMParameters> slam_param)
 
 void SLAMCore::outlierRemoval() {
 
-    // Remove outliers from the current kf
+    // Remove outliers from the current kf after tracking / matching
+    isae::typed_vec_features clean_features;
+
     for (auto tf : _frame->getSensors().at(0)->getFeatures()) {
-        for (auto f : tf.second) {
-            if (f->isOutlier()) {
-                _frame->getSensors().at(0)->removeFeature(f);
-                continue;
-            }
 
-            bool is_outlier = true;
-
-            for (auto m : _matches_in_time[tf.first]) {
-                if (f == m.second) {
-                    is_outlier = false;
-                    break;
-                }
-            }
-
-            if (!is_outlier)
-                continue;
-
-            for (auto m : _matches_in_time_lmk[tf.first]) {
-                if (f == m.second) {
-                    is_outlier = false;
-                    break;
-                }
-            }
-
-            if (is_outlier) {
-                _frame->getSensors().at(0)->removeFeature(f);
+        for (auto m : _matches_in_time[tf.first]) {
+            if (!m.second->isOutlier()) {
+                clean_features[tf.first].push_back(m.second);
             }
         }
+
+        for (auto m : _matches_in_time_lmk[tf.first]) {
+            if (!m.second->isOutlier()) {
+                clean_features[tf.first].push_back(m.second);
+            }
+        }
+
+        _frame->getSensors().at(0)->purgeFeatures(tf.first);
+        _frame->getSensors().at(0)->addFeatures(tf.first, clean_features[tf.first]);
     }
 }
 
@@ -407,18 +394,18 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
 
     for (auto tmatch : _matches_in_time) {
         for (auto match : tmatch.second) {
-            avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() *
-                                      match.second->getBearingVectors().at(0));
+            avg_parallax +=
+                std::acos(match.first->getBearingVectors().at(0).transpose() * match.second->getBearingVectors().at(0));
         }
     }
 
     for (auto tmatch : _matches_in_time_lmk) {
         for (auto match : tmatch.second) {
-            avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() *
-                                      match.second->getBearingVectors().at(0));
+            avg_parallax +=
+                std::acos(match.first->getBearingVectors().at(0).transpose() * match.second->getBearingVectors().at(0));
         }
     }
-    
+
     avg_parallax /= (n_matches + n_matches_lmk);
     avg_parallax *= 180 / M_PI;
 
@@ -601,10 +588,9 @@ void SLAMCore::runFrontEnd() {
 
         if (!_is_init) {
             bool init_success = this->init();
-            while(!init_success)
+            while (!init_success)
                 init_success = this->init();
-        }
-        else
+        } else
             this->frontEndStep();
         std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
@@ -625,10 +611,9 @@ void SLAMCore::runFullOdom() {
 
         if (!_is_init) {
             bool init_success = this->init();
-            while(!init_success)
+            while (!init_success)
                 init_success = this->init();
-        }
-        else
+        } else
             this->frontEndStep();
 
         this->backEndStep();

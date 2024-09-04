@@ -58,6 +58,10 @@ uint ALandmarkInitializer::initFromMatch(feature_pair match) {
     f1 = match.first;
     f2 = match.second;
 
+    // Don't if there is an outlier
+    if (f1->isOutlier() || f2->isOutlier())
+        return 0;
+
     // Does an attached landmark already exist for f1 or f2 ?
     std::shared_ptr<ALandmark> l1 = f1->getLandmark().lock();
     std::shared_ptr<ALandmark> l2 = f2->getLandmark().lock();

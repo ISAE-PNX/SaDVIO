@@ -60,7 +60,8 @@ class AngularAdjustmentCERESAnalytic : public AOptimizer {
 
             // Get Landmark P3D pose
             Eigen::Vector3d t_s_lmk = _T_s_f * _T_f_w * dT * (_t_w_lmk + dt);
-            Eigen::Vector3d b_s_lmk = t_s_lmk / t_s_lmk.norm();
+            double t_s_lmk_norm     = t_s_lmk.norm();
+            Eigen::Vector3d b_s_lmk = t_s_lmk / t_s_lmk_norm;
 
             // Project on tangent plane
             Eigen::Vector3d b1;
@@ -75,18 +76,19 @@ class AngularAdjustmentCERESAnalytic : public AOptimizer {
             Eigen::Vector3d b2 = b1.cross(_bearing_vector);
             b2.normalize();
 
-            Eigen::MatrixXd P = Eigen::MatrixXd::Zero(3, 2);
-            P.col(0)          = b1;
-            P.col(1)          = b2;
+            Eigen::MatrixXd P  = Eigen::MatrixXd::Zero(3, 2);
+            P.col(0)           = b1;
+            P.col(1)           = b2;
+            Eigen::MatrixXd Pt = P.transpose();
 
             Eigen::Map<Eigen::Vector2d> res(residuals);
-            res = weight * P.transpose() * (b_s_lmk - _bearing_vector);
+            res = weight * Pt * (b_s_lmk - _bearing_vector);
 
             if (jacobians != NULL) {
 
                 Eigen::MatrixXd J_e_lmk = Eigen::MatrixXd::Zero(2, 3);
-                J_e_lmk += P.transpose() * (Eigen::Matrix3d::Identity() - b_s_lmk * b_s_lmk.transpose()) *
-                           _T_s_f.linear() * _T_f_w.linear() / t_s_lmk.norm();
+                J_e_lmk += Pt * (Eigen::Matrix3d::Identity() - b_s_lmk * b_s_lmk.transpose()) *
+                           _T_s_f.linear() * _T_f_w.linear() / t_s_lmk_norm;
 
                 if (jacobians[0] != NULL) {
                     Eigen::MatrixXd J_bear_frame = Eigen::MatrixXd::Zero(3, 6);
@@ -285,7 +287,7 @@ class AngularAdjustmentCERESAnalytic : public AOptimizer {
             Eigen::Affine3d dT     = geometry::se3_doubleVec6dtoRT(parameters[0]);
             Eigen::Affine3d dTa    = geometry::se3_doubleVec6dtoRT(parameters[1]);
             Eigen::Affine3d T_s_sa = _T_s_f * _T_f_w * dT * dTa.inverse() * _T_fa_w.inverse() * _T_s_f.inverse();
-            double weight = 1 / _sigma;
+            double weight          = 1 / _sigma;
 
             // Get Landmark P3D pose
             Eigen::Vector3d t_sa_lmk = _bearing_vector_cam * (_depth + *parameters[2]);
@@ -399,54 +401,58 @@ class AngularAdjustmentCERESAnalytic : public AOptimizer {
             res(1) = weight * n_obs.transpose() * b_ldmk;
 
             // Process jacobians
-            if (jacobians != NULL) {                
-                                
-                Eigen::MatrixXd J_e0_n_lmk = Eigen::MatrixXd::Zero(1, 3);
-                J_e0_n_lmk = geometry::J_norm(n_obs.cross(n_ldmk_normed)) * geometry::J_AcrossX(n_obs) * geometry::J_normalization(n_ldmk);
+            if (jacobians != NULL) {
 
-                Eigen::MatrixXd J_e1_t_lmk = Eigen::MatrixXd::Zero(1, 3);  
-                J_e1_t_lmk = n_obs.transpose() * geometry::J_normalization(T_s_lmk.translation());
+                Eigen::MatrixXd J_e0_n_lmk = Eigen::MatrixXd::Zero(1, 3);
+                J_e0_n_lmk                 = geometry::J_norm(n_obs.cross(n_ldmk_normed)) * geometry::J_AcrossX(n_obs) *
+                             geometry::J_normalization(n_ldmk);
+
+                Eigen::MatrixXd J_e1_t_lmk = Eigen::MatrixXd::Zero(1, 3);
+                J_e1_t_lmk                 = n_obs.transpose() * geometry::J_normalization(T_s_lmk.translation());
 
                 Eigen::MatrixXd J_t_lmk_dT = Eigen::MatrixXd::Zero(3, 6);
-                J_t_lmk_dT.block(0, 0, 3, 3) = -(_T_s_f*_T_f_w).rotation() * dT.rotation() *
-                                                geometry::skewMatrix(_T_w_lmk.rotation()*dTlmk.translation()) *
-                                                geometry::so3_rightJacobian(geometry::log_so3(dT.rotation())) +
-                                                -(_T_s_f*_T_f_w).rotation() * dT.rotation() *
-                                                geometry::skewMatrix(_T_w_lmk.translation());
-                J_t_lmk_dT.block(0, 3, 3, 3) =  (_T_s_f*_T_f_w).rotation();
+                J_t_lmk_dT.block(0, 0, 3, 3) =
+                    -(_T_s_f * _T_f_w).rotation() * dT.rotation() *
+                        geometry::skewMatrix(_T_w_lmk.rotation() * dTlmk.translation()) *
+                        geometry::so3_rightJacobian(geometry::log_so3(dT.rotation())) +
+                    -(_T_s_f * _T_f_w).rotation() * dT.rotation() * geometry::skewMatrix(_T_w_lmk.translation());
+                J_t_lmk_dT.block(0, 3, 3, 3) = (_T_s_f * _T_f_w).rotation();
 
-                Eigen::MatrixXd J_R_lmk_dT = Eigen::MatrixXd::Zero(3, 6);   
-                J_R_lmk_dT.block(0, 0, 3, 3) =  -(_T_s_f*_T_f_w).rotation() * dT.rotation() *
-                                                geometry::skewMatrix(_T_w_lmk.rotation()*dTlmk.rotation()*Eigen::Vector3d(1,0,0)) *
-                                                geometry::so3_rightJacobian(geometry::log_so3(dT.rotation()));
+                Eigen::MatrixXd J_R_lmk_dT = Eigen::MatrixXd::Zero(3, 6);
+                J_R_lmk_dT.block(0, 0, 3, 3) =
+                    -(_T_s_f * _T_f_w).rotation() * dT.rotation() *
+                    geometry::skewMatrix(_T_w_lmk.rotation() * dTlmk.rotation() * Eigen::Vector3d(1, 0, 0)) *
+                    geometry::so3_rightJacobian(geometry::log_so3(dT.rotation()));
 
-                Eigen::MatrixXd J_t_lmk_dTlmk = Eigen::MatrixXd::Zero(3, 6);
-                J_t_lmk_dTlmk.block(0, 3, 3, 3) =  (_T_s_f*_T_f_w*dT*_T_w_lmk).rotation();
+                Eigen::MatrixXd J_t_lmk_dTlmk   = Eigen::MatrixXd::Zero(3, 6);
+                J_t_lmk_dTlmk.block(0, 3, 3, 3) = (_T_s_f * _T_f_w * dT * _T_w_lmk).rotation();
 
-                Eigen::MatrixXd J_R_lmk_dTlmk   =  Eigen::MatrixXd::Zero(3, 6);   
-                J_R_lmk_dTlmk.block(0, 0, 3, 3) =  -(_T_s_f*_T_f_w*dT*_T_w_lmk).rotation() * dTlmk.rotation() *
-                                                   geometry::skewMatrix(Eigen::Vector3d(1,0,0)) *
-                                                   geometry::so3_rightJacobian(geometry::log_so3(dTlmk.rotation()));
-
-
+                Eigen::MatrixXd J_R_lmk_dTlmk   = Eigen::MatrixXd::Zero(3, 6);
+                J_R_lmk_dTlmk.block(0, 0, 3, 3) = -(_T_s_f * _T_f_w * dT * _T_w_lmk).rotation() * dTlmk.rotation() *
+                                                  geometry::skewMatrix(Eigen::Vector3d(1, 0, 0)) *
+                                                  geometry::so3_rightJacobian(geometry::log_so3(dTlmk.rotation()));
 
                 // wrt Frame params dT 2x6
                 if (jacobians[0] != NULL) {
 
                     Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>> J_frame(jacobians[0]);
-                    J_frame.block(0,0,1,6) = weight*J_e0_n_lmk*( 
-                                            geometry::skewMatrix(T_s_lmk.rotation()*Eigen::Vector3d(1,0,0)).transpose()*(geometry::J_normalization(T_s_lmk.translation())*J_t_lmk_dT) +
-                                            geometry::skewMatrix(n_ldmk_normed)*J_R_lmk_dT);
-                    J_frame.block(1,0,1,6) = weight*J_e1_t_lmk*J_t_lmk_dT;
+                    J_frame.block(0, 0, 1, 6) =
+                        weight * J_e0_n_lmk *
+                        (geometry::skewMatrix(T_s_lmk.rotation() * Eigen::Vector3d(1, 0, 0)).transpose() *
+                             (geometry::J_normalization(T_s_lmk.translation()) * J_t_lmk_dT) +
+                         geometry::skewMatrix(n_ldmk_normed) * J_R_lmk_dT);
+                    J_frame.block(1, 0, 1, 6) = weight * J_e1_t_lmk * J_t_lmk_dT;
                 }
 
                 // wrt landmark params dTlmk 2x6
-                if (jacobians[1] != NULL) {                    
+                if (jacobians[1] != NULL) {
                     Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>> J_lmk(jacobians[1]);
-                    J_lmk.block(0,0,1,6) = weight*J_e0_n_lmk*( 
-                                            geometry::skewMatrix(T_s_lmk.rotation()*Eigen::Vector3d(1,0,0)).transpose()*(geometry::J_normalization(T_s_lmk.translation())*J_t_lmk_dTlmk) +
-                                            geometry::skewMatrix(n_ldmk_normed)*J_R_lmk_dTlmk);
-                    J_lmk.block(1,0,1,6) = weight*J_e1_t_lmk*J_t_lmk_dTlmk;                    
+                    J_lmk.block(0, 0, 1, 6) =
+                        weight * J_e0_n_lmk *
+                        (geometry::skewMatrix(T_s_lmk.rotation() * Eigen::Vector3d(1, 0, 0)).transpose() *
+                             (geometry::J_normalization(T_s_lmk.translation()) * J_t_lmk_dTlmk) +
+                         geometry::skewMatrix(n_ldmk_normed) * J_R_lmk_dTlmk);
+                    J_lmk.block(1, 0, 1, 6) = weight * J_e1_t_lmk * J_t_lmk_dTlmk;
                 }
             }
 
