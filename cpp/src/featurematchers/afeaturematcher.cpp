@@ -161,6 +161,9 @@ uint AFeatureMatcher::ldmk_match(std::shared_ptr<ImageSensor> &sensor1,
         // Check if the ldmk is already matched in the frame
         bool already_in = false;
         for (auto f : lmk->getFeatures()) {
+            if (!f.lock())
+                continue;
+
             if (f.lock()->getSensor()->getFrame() == sensor1->getFrame()) 
                 already_in = true;
         }

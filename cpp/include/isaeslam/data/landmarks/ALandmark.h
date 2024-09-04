@@ -23,10 +23,7 @@ class ALandmark : public std::enable_shared_from_this<ALandmark> {
     std::string getLandmarkLabel() const { return _label; }
 
     void addFeature(std::shared_ptr<AFeature> feature);
-    std::vector<std::weak_ptr<AFeature>> getFeatures() {
-        removeExpiredFeatures();
-        return _features;
-    }
+    std::vector<std::weak_ptr<AFeature>> getFeatures() { return _features; }
 
     void removeExpiredFeatures();
     void removeFeature(std::shared_ptr<AFeature> f);

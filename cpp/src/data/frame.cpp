@@ -89,9 +89,10 @@ void Frame::cleanLandmarks() {
         for (auto &typed_fs : sensor->getFeatures()) {
             // For each feature
             for (auto &f : typed_fs.second) {
-                // if the feature is linked to a ldmk, unlink
+                // if the feature is linked to a ldmk, unlink and clean
                 if (f->getLandmark().lock()) {
                     f->getLandmark().lock()->removeFeature(f);
+                    f->getLandmark().lock()->removeExpiredFeatures();
                 }
             }
         }
