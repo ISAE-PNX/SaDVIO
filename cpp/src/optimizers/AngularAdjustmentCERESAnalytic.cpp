@@ -135,8 +135,7 @@ uint AngularAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &proble
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!feature || !frame->isKeyFrame()) {
                         continue;
                     }
 
@@ -182,8 +181,7 @@ uint AngularAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &proble
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!feature || !frame->isKeyFrame()) {
                         continue;
                     }
 

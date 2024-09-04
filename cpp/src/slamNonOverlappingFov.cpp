@@ -239,7 +239,7 @@ bool SLAMNonOverlappingFov::frontEndStep() {
         // Single Frame Bundle Adjustment
         _slam_param->getOptimizerFront()->singleFrameOptimization(_frame);
         _avg_frame_opt_t = (_avg_frame_opt_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
-        _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getInMapLandmarksNumber()) / _nframes;
+        _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getLandmarks()["pointxd"].size()) / _nframes;
 
         // Compute velocity and motion model
         _6d_velocity =

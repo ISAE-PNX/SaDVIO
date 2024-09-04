@@ -201,7 +201,7 @@ bool SLAMBiMonoVIO::step_init() {
         isae::timer::tic();
         _slam_param->getOptimizerFront()->singleFrameOptimization(_frame);
         _avg_frame_opt_t = (_avg_frame_opt_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
-        _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getInMapLandmarksNumber()) / _nframes;
+        _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getLandmarks()["pointxd"].size()) / _nframes;
 
         // Compute velocity and motion model
         _6d_velocity =
@@ -412,7 +412,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
         _slam_param->getOptimizerFront()->singleFrameVIOptimization(_frame);
         float optim_dt   = isae::timer::silentToc();
         _avg_frame_opt_t = (_avg_frame_opt_t * (_nframes - 1) + optim_dt) / _nframes;
-        _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getInMapLandmarksNumber()) / _nframes;
+        _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getLandmarks()["pointxd"].size()) / _nframes;
         timing_fe.push_back(optim_dt);
 
         // Compute velocity and motion model
