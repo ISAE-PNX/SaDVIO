@@ -60,7 +60,6 @@ class SLAMCore {
     std::shared_ptr<isae::GlobalMap> _global_map_to_display;
     std::shared_ptr<Mesh3D> _mesh_to_display;
 
-  protected:
     // Feature detection
     typed_vec_features detectFeatures(std::shared_ptr<ImageSensor> &sensor);
     void cleanFeatures(std::shared_ptr<Frame> &f);

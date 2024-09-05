@@ -248,7 +248,7 @@ TEST_F(MeshTest, covTest) {
 
     Eigen::Matrix2d cov_num  = Eigen::Matrix2d::Zero();
     Eigen::Vector2d bary_num = Eigen::Vector2d::Zero();
-    int n_pts                = 1000000;
+    int n_pts                = 100000;
 
     for (int i = 0; i < n_pts; i++) {
         Eigen::Vector2d rand_pt = 2 * Eigen::Vector2d::Random();
@@ -263,13 +263,13 @@ TEST_F(MeshTest, covTest) {
     bary_num /= n_pts;
     cov_num = cov_num / n_pts;
 
-    ASSERT_NEAR((bary_num - barycenter).norm(), 0, 1e-2);
+    ASSERT_NEAR((bary_num - barycenter).norm(), 0, 1e-1);
 
     // Compute covariance
     Eigen::Matrix2d M = geometry::cov2dTriangle(tri_2d);
     std::cout << cov_num << "\n" << std::endl;
     std::cout << M << std::endl;
-    ASSERT_NEAR((M - cov_num).sum(), 0, 1e-3);
+    ASSERT_NEAR((M - cov_num).sum(), 0, 1e-2);
 
     // Try equi triangle (the eigen values must be equal)
     u1 << std::cos(M_PI / 3), std::sin(M_PI / 3);

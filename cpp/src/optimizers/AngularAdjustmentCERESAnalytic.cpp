@@ -1028,7 +1028,7 @@ bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> 
     // Build a marginalization block to compute the jacobian
     Eigen::Affine3d T_w_a         = frame0->getFrame2WorldTransform();
     Eigen::Affine3d T_w_b         = frame1->getFrame2WorldTransform();
-    Eigen::Affine3d T_a_b         = T_w_a.inverse() * T_w_b;
+    Eigen::Affine3d T_a_b         = frame0->getWorld2FrameTransform() * T_w_b;
     ceres::CostFunction *cost_fct = new Relative6DPose(T_w_a, T_w_b, T_a_b, Vector6d::Ones().asDiagonal());
     std::vector<double *> parameter_blocks;
     std::vector<int> parameter_idx;

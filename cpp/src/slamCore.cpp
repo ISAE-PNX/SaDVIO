@@ -225,33 +225,26 @@ typed_vec_match SLAMCore::epipolarFiltering(std::shared_ptr<ImageSensor> &cam0,
                                             std::shared_ptr<ImageSensor> &cam1,
                                             typed_vec_match matches) {
     typed_vec_match valid_matches;
-    Eigen::Vector3d epi_line =
-        cam0->getSensor2WorldTransform().translation() - cam1->getSensor2WorldTransform().translation();
+    Eigen::Affine3d T_c0_c1 = cam0->getWorld2SensorTransform() * cam1->getSensor2WorldTransform();
+    Eigen::Vector3d epi_line = - T_c0_c1.translation();
+    epi_line /= epi_line.norm();
 
-    // Epipolar filtering for tracks_in_time
-    for (auto &tmatch : matches) {
-        for (auto &m : tmatch.second) {
+    // Epipolar filtering for tracks_in_time, only for punctual landmarks
+    for (auto &m : matches["pointxd"]) {
 
-            // Do not filter features that are not punctual
-            if (tmatch.first != "pointxd") {
-                valid_matches[tmatch.first].push_back(m);
-                continue;
-            }
+        // Check the angle with the epipolar plane
+        Eigen::Vector3d ray1 = m.first->getBearingVectors().at(0);
+        Eigen::Vector3d ray2 = T_c0_c1.rotation() * m.second->getBearingVectors().at(0);
 
-            // Check the angle with the epipolar plane
-            Eigen::Vector3d ray1 = cam0->getSensor2WorldTransform().rotation() * m.first->getBearingVectors().at(0);
-            Eigen::Vector3d ray2 = cam1->getSensor2WorldTransform().rotation() * m.second->getBearingVectors().at(0);
+        Eigen::Vector3d epiplane_normal = ray1.cross(epi_line);
+        epiplane_normal /= epiplane_normal.norm();
+        double residual = std::abs(epiplane_normal.dot(ray2));
 
-            Eigen::Vector3d epiplane_normal = ray1.cross(epi_line / epi_line.norm());
-            epiplane_normal                 = epiplane_normal / epiplane_normal.norm();
-            double residual                 = std::abs(epiplane_normal.dot(ray2));
-
-            // The angular threshold is set to 1 degree
-            if (90 - std::acos(residual) * 180 / M_PI < 1)
-                valid_matches[tmatch.first].push_back(m);
-            else
-                m.second->setOutlier();
-        }
+        // The angular threshold is set to 1 degree
+        if (90 - std::acos(residual) * 180 / M_PI < 0.5)
+            valid_matches["pointxd"].push_back(m);
+        else
+            m.second->setOutlier();
     }
 
     return valid_matches;
@@ -509,8 +502,9 @@ void SLAMCore::profiling() {
         if (getLastKF()) {
             std::shared_ptr<Frame> f = getLastKF();
             std::ofstream fw_res("log_slam/results.csv", std::ofstream::out | std::ofstream::app);
-            const Eigen::Matrix3d R = f->getFrame2WorldTransform().linear();
-            Eigen::Vector3d twc     = f->getFrame2WorldTransform().translation();
+            Eigen::Affine3d T_w_f = f->getFrame2WorldTransform();
+            const Eigen::Matrix3d R = T_w_f.linear();
+            Eigen::Vector3d twc     = T_w_f.translation();
             fw_res << f->getTimestamp() << "," << _nframes << "," << R(0, 0) << "," << R(0, 1) << "," << R(0, 2) << ","
                    << twc.x() << "," << R(1, 0) << "," << R(1, 1) << "," << R(1, 2) << "," << twc.y() << "," << R(2, 0)
                    << "," << R(2, 1) << "," << R(2, 2) << "," << twc.z() << "\n";

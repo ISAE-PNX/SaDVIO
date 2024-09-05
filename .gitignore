@@ -7,4 +7,3 @@ cmake-build-release/
 
 cpp/build
 .vscode/
-*.csv
