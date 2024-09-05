@@ -13,9 +13,15 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
 
     // Get matched features from frame 1 with existing 3D landmarks
     std::vector<cv::Point3d> p3d_vector;
+    p3d_vector.reserve(matches.size());
     std::vector<cv::Point2d> p2d_vector;
+    p2d_vector.reserve(matches.size());
+
     vec_match init_matches, noninit_matches;
-    uint idx = 0;
+    init_matches.reserve(matches.size());
+    noninit_matches.reserve(matches.size());
+
+    Eigen::Affine3d T_cam1_w = matches.at(0).first->getSensor()->getWorld2SensorTransform();
     for (auto &m : matches) {
         if (m.first->getLandmark().lock()) {
 
@@ -28,14 +34,13 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
 
             // Get p3d in camera one frame
             Eigen::Vector3d t_w_lmk    = m.first->getLandmark().lock()->getPose().translation();
-            Eigen::Vector3d t_cam1_lmk = m.first->getSensor()->getSensor2WorldTransform().inverse() * t_w_lmk;
+            Eigen::Vector3d t_cam1_lmk = T_cam1_w * t_w_lmk;
             p3d_vector.push_back({t_cam1_lmk.x(), t_cam1_lmk.y(), t_cam1_lmk.z()});
 
             // Get corresponding detection in homogeneous coordinates in frame 2
-            Eigen::Vector3d ray_cam2 = m.second->getSensor()->getRayCamera(m.second->getPoints().at(0));
+            Eigen::Vector3d ray_cam2 = m.second->getBearingVectors().at(0);
             p2d_vector.push_back({ray_cam2.x() / ray_cam2.z(), ray_cam2.y() / ray_cam2.z()});
         }
-        idx++;
     }
 
     if (p2d_vector.size() < 5)
@@ -80,8 +85,12 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
     // Relaunch solvepnp with the inliers only using first approx
     use_extrinsic_guess = true;
     std::vector<cv::Point2d> in_p2d_vector;
+    in_p2d_vector.reserve(p2d_vector.size());
     std::vector<cv::Point3d> in_p3d_vector;
+    in_p3d_vector.reserve(p3d_vector.size());
     vec_match inliers_matches;
+    inliers_matches.reserve(matches.size());
+    
     for (int i = 0; i < inliers.rows; i++) {
         in_p2d_vector.push_back(p2d_vector.at(inliers.at<int>(i)));
         in_p3d_vector.push_back(p3d_vector.at(inliers.at<int>(i)));
