@@ -44,8 +44,8 @@ class AFeatureDetector {
                           int y,
                           int w,
                           int h,
-                          std::vector<int> &indexes,
-                          std::vector<std::shared_ptr<AFeature>> features) const;
+                          const std::vector<std::shared_ptr<AFeature>> &features,
+                          std::vector<std::shared_ptr<AFeature>> &features_in_box) const;
 
     void deleteUndescribedFeatures(std::vector<std::shared_ptr<AFeature>> &features);
 

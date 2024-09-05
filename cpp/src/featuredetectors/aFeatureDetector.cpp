@@ -11,26 +11,24 @@ bool AFeatureDetector::getFeaturesInBox(int x,
                                         int y,
                                         int w,
                                         int h,
-                                        std::vector<int> &indexes,
-                                        std::vector<std::shared_ptr<AFeature>> features) const {
-    for (size_t i = 0; i < features.size(); i++) {
-        const std::shared_ptr<AFeature> &f = features[i];
+                                        const std::vector<std::shared_ptr<AFeature>> &features,
+                                        std::vector<std::shared_ptr<AFeature>> &features_in_box) const {
 
-        if(f->getFeatureLabel() == "linexd"){
-            Eigen::Vector2d middlePt = (f->getPoints().at(0) + f->getPoints().at(1))/2.;
-            if (middlePt(0) < x || middlePt(0) > x + w || middlePt(1) < y ||
-                middlePt(1) > y + h)
+    for (auto &f : features) {
+
+        if (f->getFeatureLabel() == "linexd") {
+            Eigen::Vector2d middlePt = (f->getPoints().at(0) + f->getPoints().at(1)) / 2.;
+            if (middlePt(0) < x || middlePt(0) > x + w || middlePt(1) < y || middlePt(1) > y + h)
                 continue;
-            indexes.push_back(i);
-        }
-        else{
+            features_in_box.push_back(f);
+        } else {
             if (f->getPoints().at(0)(0) < x || f->getPoints().at(0)(0) > x + w || f->getPoints().at(0)(1) < y ||
                 f->getPoints().at(0)(1) > y + h)
                 continue;
-            indexes.push_back(i);
+            features_in_box.push_back(f);
         }
     }
-    if (indexes.empty())
+    if (features_in_box.empty())
         return false;
     else
         return true;
@@ -56,7 +54,7 @@ void AFeatureDetector::KeypointToFeature(std::vector<cv::KeyPoint> keypoints,
         points.push_back(point);
 
         if (descriptors.empty()) {
-            std::cerr << "empty descriptor" << std::endl; 
+            std::cerr << "empty descriptor" << std::endl;
         } else {
             if (featurelabel == "pointxd")
                 features.push_back(std::make_shared<Point2D>(points, descriptors.row(i), keypoints.at(i).octave));

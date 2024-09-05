@@ -20,34 +20,34 @@ void AFeatureMatcher::getPossibleMatchesBetween(const std::vector<std::shared_pt
         // Retain the two best scores
         double best_dist1 = _detector->getMaxMatchingDist();
         double best_dist2 = _detector->getMaxMatchingDist();
-        int best_idx1     = -1;
+        std::shared_ptr<AFeature> best_feat     = nullptr;
 
         // Get second set's features in the viscinity
-        std::vector<int> indexes;
+        std::vector<std::shared_ptr<AFeature>> feat2_in_box;
         if (!_detector->getFeaturesInBox(f_init->getPoints().at(0)(0) - searchAreaWidth / 2,
                                          f_init->getPoints().at(0)(1) - searchAreaHeight / 2,
                                          searchAreaWidth,
                                          searchAreaHeight,
-                                         indexes,
-                                         features2))
+                                         features2,
+                                         feat2_in_box))
             continue; // no features detected
 
         // Remove matches that are not possible
-        for (int idx = indexes.size() - 1; idx >= 0; idx--) {
+        for (auto &f2 : feat2_in_box) {
 
             // Check if the octave is similar
-            if (f->getOctave() < features2.at(indexes.at(idx))->getOctave() - 1 ||
-                f->getOctave() > features2.at(indexes.at(idx))->getOctave()) {
+            if (f->getOctave() < f2->getOctave() - 1 ||
+                f->getOctave() > f2->getOctave() + 1) {
                 continue;
             }
 
             // Check the score
-            double score = _detector->getDist(f->getDescriptor(), features2.at(indexes.at(idx))->getDescriptor());
+            double score = _detector->getDist(f->getDescriptor(), f2->getDescriptor());
             if (score < best_dist1) {
                 best_dist2 = best_dist1;
                 best_dist1 = score;
 
-                best_idx1 = idx;
+                best_feat = f2;
             } else if (score < best_dist2) {
                 best_dist2 = score;
             }
@@ -55,7 +55,7 @@ void AFeatureMatcher::getPossibleMatchesBetween(const std::vector<std::shared_pt
 
         // keep match only if the ratio is low enough
         if (best_dist1 / best_dist2 < _first_second_match_score_ratio) {
-            matches[f].push_back(features2.at(indexes.at(best_idx1)));
+            matches[f].push_back(best_feat);
             all_scores[f].push_back(best_dist1);
         }
     }
@@ -164,7 +164,7 @@ uint AFeatureMatcher::ldmk_match(std::shared_ptr<ImageSensor> &sensor1,
             if (!f.lock())
                 continue;
 
-            if (f.lock()->getSensor()->getFrame() == sensor1->getFrame()) 
+            if (f.lock()->getSensor() == sensor1) 
                 already_in = true;
         }
         if (already_in) 
@@ -172,7 +172,7 @@ uint AFeatureMatcher::ldmk_match(std::shared_ptr<ImageSensor> &sensor1,
 
         std::string label = lmk->getLandmarkLabel();
 
-        // If it has prior continue
+        // Ignore if it has prior, is not init or is an outlier
         if (lmk->hasPrior() || !lmk->isInitialized() || lmk->isOutlier())
             continue;
 
@@ -200,19 +200,17 @@ uint AFeatureMatcher::ldmk_match(std::shared_ptr<ImageSensor> &sensor1,
         if (y + height > sensor1->getRawData().rows)
             height = sensor1->getRawData().cols - y;
 
-        std::vector<std::shared_ptr<AFeature>> features;
+        std::vector<std::shared_ptr<AFeature>> features_in_box;
 
         _detector->getFeaturesInBox(x,
                                     y,
                                     width,
                                     height,
-                                    indexes,
-                                    sensor1->getFeatures(label));
-        if (!indexes.empty()) {
-            for (auto i : indexes)
-                features.push_back(sensor1->getFeatures(label).at(i));
+                                    sensor1->getFeatures(label),
+                                    features_in_box);
+        if (!features_in_box.empty()) {
 
-            for (auto &f : features) {
+            for (auto &f : features_in_box) {
                 
                 // Ignore features with landmarks
                 if (f->getLandmark().lock())
