@@ -349,13 +349,14 @@ double Marginalization::computeKLD(Eigen::MatrixXd A_p, Eigen::MatrixXd A_q) {
 
     Eigen::VectorXd Sigma_p = d.array().inverse();
     Eigen::MatrixXd delta   = U.transpose() * A_q * U * Sigma_p.asDiagonal();
+    double delta_det = delta.determinant();
 
-    if (delta.determinant() == 0) {
+    if (delta_det == 0) {
         delta = delta + 0.001 * Eigen::MatrixXd::Identity(delta.rows(), delta.rows());
         return 100;
     }
 
-    return 0.5 * (delta.trace() - std::log(delta.determinant()) - U.cols());
+    return 0.5 * (delta.trace() - std::log(delta_det) - U.cols());
 }
 
 bool Marginalization::sparsifyVIO() {
@@ -365,13 +366,15 @@ bool Marginalization::sparsifyVIO() {
 
     // For pose to landmark factors
     Eigen::Affine3d T_f_w = _frame_to_keep->getWorld2FrameTransform();
+    Eigen::Matrix3d R_f_w = T_f_w.rotation();
+    Eigen::Matrix3d t_skew = geometry::skewMatrix(T_f_w.translation());
     for (auto tlmk : _lmk_to_keep) {
         for (auto lmk : tlmk.second) {
             Eigen::MatrixXd J                      = Eigen::MatrixXd::Zero(3, _n);
-            J.block(0, _map_lmk_idx.at(lmk), 3, 3) = T_f_w.rotation();
+            J.block(0, _map_lmk_idx.at(lmk), 3, 3) = R_f_w;
             J.block(0, _map_frame_idx.at(_frame_to_keep), 3, 3) =
-                -T_f_w.rotation() * geometry::skewMatrix(T_f_w.translation());
-            J.block(0, _map_frame_idx.at(_frame_to_keep) + 3, 3, 3) = T_f_w.rotation();
+                -R_f_w * t_skew;
+            J.block(0, _map_frame_idx.at(_frame_to_keep) + 3, 3, 3) = R_f_w;
             Eigen::MatrixXd J_tilde                                 = J * _U;
 
             Eigen::Matrix3d inf = (J_tilde * _Sigma.asDiagonal() * J_tilde.transpose()).inverse();
@@ -430,6 +433,7 @@ bool Marginalization::sparsifyVO() {
 
     // Hungarian algorithm to find the best combination
     std::vector<std::shared_ptr<ALandmark>> lmk_to_keep_ordered;
+    lmk_to_keep_ordered.reserve(_lmk_to_keep["pointxd"].size());
     int max_row, max_col;
 
     // First couple
