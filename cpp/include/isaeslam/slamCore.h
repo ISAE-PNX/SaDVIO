@@ -1,11 +1,11 @@
 #ifndef SLAMCORE_H
 #define SLAMCORE_H
 
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
-#include <thread>
 #include <mutex>
+#include <thread>
 
 #include "isaeslam/data/features/AFeature2D.h"
 #include "isaeslam/data/maps/globalmap.h"
@@ -52,7 +52,7 @@ class SLAMCore {
     void runFullOdom();
 
     // Flag for init
-    bool _is_init            = false;
+    bool _is_init = false;
 
     // Public variables for display
     std::shared_ptr<Frame> _frame_to_display;
@@ -95,13 +95,13 @@ class SLAMCore {
     void updateLandmarks(typed_vec_match matches_lmk);
     uint recoverFeatureFromMapLandmarks(std::shared_ptr<isae::AMap> localmap, std::shared_ptr<Frame> &f);
     bool shouldInsertKeyframe(std::shared_ptr<Frame> &f);
+    std::shared_ptr<Frame> getLastKF() { return _local_map->getLastFrame(); }
 
     // Profiling
     void profiling();
 
-    std::shared_ptr<Frame> getLastKF() { return _local_map->getLastFrame(); }
-
-    // Current Frame
+  protected:
+    std::shared_ptr<isae::SLAMParameters> _slam_param;
     std::shared_ptr<Frame> _frame;
 
     // Typed vector for matches
@@ -122,15 +122,12 @@ class SLAMCore {
     std::mutex _map_mutex;
     std::shared_ptr<Frame> _frame_to_optim;
 
-    std::shared_ptr<isae::SLAMParameters> _slam_param;
-
     // Constant velocity model
     Vector6d _6d_velocity;
 
     // Profiling variables
     uint _nframes;
     uint _nkeyframes;
-
     float _avg_detect_t;
     float _avg_processing_t;
     float _avg_match_frame_t;
@@ -143,38 +140,33 @@ class SLAMCore {
     float _avg_clean_t;
     float _avg_marg_t;
     float _avg_wdw_opt_t;
-    
-    // For timing statistics
-    std::vector<std::vector<float>> _timings_frate;
-    std::vector<std::vector<float>> _timings_kfrate_fe;
-    std::vector<std::vector<float>> _timings_kfrate_be;
-
-
     float _removed_lmk;
     float _removed_feat;
     float _lmk_inmap;
     float _avg_matches_time;
     float _avg_matches_frame;
     float _avg_resur_lmk;
+
+    // For timing statistics
+    std::vector<std::vector<float>> _timings_frate;
+    std::vector<std::vector<float>> _timings_kfrate_fe;
+    std::vector<std::vector<float>> _timings_kfrate_be;
 };
 
 class SLAMBiMono : public SLAMCore {
 
   public:
-    SLAMBiMono(std::shared_ptr<SLAMParameters> slam_param)
-        : SLAMCore(slam_param) {}
+    SLAMBiMono(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param) {}
 
     bool init() override;
     bool frontEndStep() override;
     bool backEndStep() override;
-
 };
 
 class SLAMBiMonoVIO : public SLAMCore {
 
   public:
-    SLAMBiMonoVIO(std::shared_ptr<SLAMParameters> slam_param)
-        : SLAMCore(slam_param) {}
+    SLAMBiMonoVIO(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param) {}
 
     bool init() override;
     bool frontEndStep() override;
@@ -193,8 +185,7 @@ class SLAMBiMonoVIO : public SLAMCore {
 class SLAMMonoVIO : public SLAMCore {
 
   public:
-    SLAMMonoVIO(std::shared_ptr<SLAMParameters> slam_param)
-        : SLAMCore(slam_param) {}
+    SLAMMonoVIO(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param) {}
 
     bool init() override;
     bool frontEndStep() override;
@@ -210,8 +201,7 @@ class SLAMMonoVIO : public SLAMCore {
 class SLAMMono : public SLAMCore {
 
   public:
-    SLAMMono(std::shared_ptr<SLAMParameters> slam_param)
-        : SLAMCore(slam_param) {}
+    SLAMMono(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param) {}
 
     bool init() override;
     bool frontEndStep() override;
@@ -222,8 +212,7 @@ class SLAMNonOverlappingFov : public SLAMCore {
 
   public:
     SLAMNonOverlappingFov(){};
-    SLAMNonOverlappingFov(std::shared_ptr<SLAMParameters> slam_param)
-        : SLAMCore(slam_param) {}
+    SLAMNonOverlappingFov(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param) {}
 
     bool init() override;
     bool frontEndStep() override;
