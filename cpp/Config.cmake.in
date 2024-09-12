@@ -1,0 +1,22 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(OpenCV)
+find_dependency(Eigen3)
+find_dependency(yaml-cpp)
+find_dependency(Ceres)
+find_dependency(PCL)
+find_dependency(Boost)
+
+include_directories(
+  include
+  ${OpenCV_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
+  ${CERES_INCLUDE_DIRS}
+  ${YAML_CPP_INCLUDE_DIR}
+  ${PCL_INCLUDE_DIRS}
+)
+
+set(ISAE_SLAM_LIBRARIES @ISAE_SLAM_LIBRARIES@)
+include("${CMAKE_CURRENT_LIST_DIR}/isae_slamTargets.cmake")
+check_required_components(isae_slam)

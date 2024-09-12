@@ -1,5 +1,5 @@
 # SET(CMAKE_CONFIGURATION_TYPES Debug;Release;MinSizeRel;RelWithDebInfo)
-SET(CMAKE_BUILD_TYPE RELEASE) # DEBUG / RELEASE
+SET(CMAKE_BUILD_TYPE DEBUG) # DEBUG / RELEASE
 
 # set(CMAKE_BUILD_TYPE "DEBUG")
 project(isae_slam)
@@ -23,7 +23,6 @@ add_definitions(-D_USE_MATH_DEFINES)
 # -------------------------------------------------------------------
 # Dependencies
 # -------------------------------------------------------------------
-
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
@@ -42,7 +41,6 @@ include_directories(
 # -------------------------------------------------------------------
 # Library
 # -------------------------------------------------------------------
-
 file(GLOB_RECURSE LIB_SOURCES src/*.cpp include/*.cpp
   thirdparty/ELSED/src/*.cpp)
 file(GLOB_RECURSE LIB_HEADERS include/*.h include/*.hpp include/*.inl
@@ -50,22 +48,46 @@ file(GLOB_RECURSE LIB_HEADERS include/*.h include/*.hpp include/*.inl
 add_library(${PROJECT_NAME} SHARED ${LIB_SOURCES} ${LIB_HEADERS})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${CERES_LIBRARIES} ${YAML_CPP_LIBRARIES} ${PCL_LIBRARIES} ${Boost_SYSTEM_LIBRARY})
 
+# -------------------------------------------------------------------
+# Install
+# -------------------------------------------------------------------
+set(ISAE_SLAM_LIBRARIES "${PROJECT_BINARY_DIR}/libisae_slam.so")
+
 install(
   TARGETS ${PROJECT_NAME}
+  EXPORT ${PROJECT_NAME}Targets
   LIBRARY DESTINATION lib/${PROJECT_NAME}
   ARCHIVE DESTINATION lib/${PROJECT_NAME}
   RUNTIME DESTINATION bin/${PROJECT_NAME}
+)
+INSTALL (
+    DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h*")
+install(
+  EXPORT ${PROJECT_NAME}Targets
+  FILE ${PROJECT_NAME}Targets.cmake
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake"
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    Config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake"
+)
+
+install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake"
 )
 
 # -------------------------------------------------------------------
 # Executables generation
 # -------------------------------------------------------------------
-
 add_executable(isaeslam ./main.cpp)
 target_link_libraries(isaeslam ${PROJECT_NAME})
 
-install(TARGETS isaeslam
- DESTINATION lib/${PROJECT_NAME})
 
 # -------------------------------------------------------------------
 # Tests
@@ -102,4 +124,3 @@ if(ISAESLAM_BUILD_TESTS)
   include(GoogleTest)
   gtest_discover_tests(isae_test)
 endif(ISAESLAM_BUILD_TESTS)
-
