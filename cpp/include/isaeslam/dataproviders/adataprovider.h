@@ -29,12 +29,15 @@ class ADataProvider {
     int getTiming() { return _img_process_dt; }
 
     // From raw data to Sensors
-    std::vector<std::shared_ptr<ImageSensor>> createImageSensors(std::vector<cv::Mat> imgs,
-                                                                 std::vector<cv::Mat> masks = {});
-    std::shared_ptr<IMU> createImuSensor(Eigen::Vector3d acc, Eigen::Vector3d gyr);
+    std::vector<std::shared_ptr<ImageSensor>> createImageSensors(const std::vector<cv::Mat> &imgs,
+                                                                 const std::vector<cv::Mat> &masks = {});
+    std::shared_ptr<IMU> createImuSensor(const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr);
 
-    // Build frame from Sensors
+    // Build frame from Sensors and add it in the queue
     void addFrameToTheQueue(std::vector<std::shared_ptr<ASensor>> sensors, double time);
+
+    // Add a frame in the queue
+    void addFrameToTheQueue(std::shared_ptr<Frame> frame);
 
   protected:
     void loadSensorsConfiguration(const std::string &path);
