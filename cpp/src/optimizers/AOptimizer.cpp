@@ -97,11 +97,6 @@ uint AOptimizer::addIMUResiduals(ceres::Problem &problem,
 
 bool AOptimizer::landmarkOptimization(std::shared_ptr<Frame> &frame) {
 
-    // Set maps for bookeeping
-    _map_frame_posepar.clear();
-    _map_lmk_ptpar.clear();
-    _map_lmk_posepar.clear();
-
     // Build the Bundle Adjustement Problem
     ceres::Problem problem;
     ceres::LossFunction *loss_function = new ceres::HuberLoss(std::sqrt(1.345));
@@ -145,15 +140,16 @@ bool AOptimizer::landmarkOptimization(std::shared_ptr<Frame> &frame) {
             }
         }
     }
+
+    // Clear maps for bookeeping
+    _map_frame_posepar.clear();
+    _map_lmk_ptpar.clear();
+    _map_lmk_posepar.clear();
+
     return true;
 }
 
 bool AOptimizer::singleFrameOptimization(std::shared_ptr<isae::Frame> &moving_frame) {
-
-    // Set maps for bookeeping
-    _map_frame_posepar.clear();
-    _map_lmk_ptpar.clear();
-    _map_lmk_posepar.clear();
 
     // Build the Bundle Adjustement Problem
     ceres::Problem problem;
@@ -185,20 +181,17 @@ bool AOptimizer::singleFrameOptimization(std::shared_ptr<isae::Frame> &moving_fr
                                                      frame_posepar.second.getPose());
     }
 
+    // Set maps for bookeeping
+    _map_frame_posepar.clear();
+    _map_lmk_ptpar.clear();
+    _map_lmk_posepar.clear();
+
     // std::cout << summary.FullReport() << std::endl;
 
     return true;
 }
 
 bool AOptimizer::singleFrameVIOptimization(std::shared_ptr<isae::Frame> &moving_frame) {
-
-    // Set maps for bookeeping
-    _map_frame_posepar.clear();
-    _map_lmk_ptpar.clear();
-    _map_lmk_posepar.clear();
-    _map_frame_velpar.clear();
-    _map_frame_dbapar.clear();
-    _map_frame_dbgpar.clear();
 
     // Build the Bundle Adjustement Problem
     ceres::Problem problem;
@@ -265,17 +258,20 @@ bool AOptimizer::singleFrameVIOptimization(std::shared_ptr<isae::Frame> &moving_
         }
     }
 
+    // Set maps for bookeeping
+    _map_frame_posepar.clear();
+    _map_lmk_ptpar.clear();
+    _map_lmk_posepar.clear();
+    _map_frame_velpar.clear();
+    _map_frame_dbapar.clear();
+    _map_frame_dbgpar.clear();
+
     // std::cout << summary.FullReport() << std::endl;
 
     return true;
 }
 
 bool AOptimizer::localMapBA(std::shared_ptr<isae::LocalMap> &local_map, const size_t fixed_sized_number) {
-
-    // Set maps for bookeeping
-    _map_frame_posepar.clear();
-    _map_lmk_ptpar.clear();
-    _map_lmk_posepar.clear();
 
     // Build the Bundle Adjustement Problem
     ceres::Problem problem;
@@ -317,6 +313,11 @@ bool AOptimizer::localMapBA(std::shared_ptr<isae::LocalMap> &local_map, const si
     for (auto &lmk_ptpar : _map_lmk_ptpar) {
         lmk_ptpar.first->setPose(lmk_ptpar.first->getPose() * lmk_ptpar.second.getPose());
     }
+
+    // Clear maps for bookeeping
+    _map_frame_posepar.clear();
+    _map_lmk_ptpar.clear();
+    _map_lmk_posepar.clear();
 
     // std::cout << summary.FullReport() << std::endl;
 

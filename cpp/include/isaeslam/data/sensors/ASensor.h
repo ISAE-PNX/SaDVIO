@@ -36,7 +36,7 @@ class ASensor {
     }
     std::shared_ptr<Frame> getFrame() {
         std::lock_guard<std::mutex> lock(_sensor_mtx);
-        return _frame;
+        return _frame.lock();
     }
 
     // Sensor pose in the frame coordinate
@@ -48,7 +48,7 @@ class ASensor {
     Eigen::Affine3d getSensor2WorldTransform();
 
   protected:
-    std::shared_ptr<Frame> _frame;
+    std::weak_ptr<Frame> _frame;
     Eigen::Affine3d _T_s_f;
     std::string _type;
 

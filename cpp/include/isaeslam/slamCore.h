@@ -54,7 +54,8 @@ class SLAMCore {
     // Flag for init
     bool _is_init = false;
 
-    // Public variables for display
+    // Public variables for display 
+    std::shared_ptr<isae::SLAMParameters> _slam_param;
     std::shared_ptr<Frame> _frame_to_display;
     std::shared_ptr<isae::LocalMap> _local_map_to_display;
     std::shared_ptr<isae::GlobalMap> _global_map_to_display;
@@ -101,7 +102,6 @@ class SLAMCore {
     void profiling();
 
   protected:
-    std::shared_ptr<isae::SLAMParameters> _slam_param;
     std::shared_ptr<Frame> _frame;
 
     // Typed vector for matches

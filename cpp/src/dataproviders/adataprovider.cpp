@@ -14,7 +14,7 @@ ADataProvider::ADataProvider(std::string path, Config slam_config) {
 std::shared_ptr<Frame> ADataProvider::next() {
     std::mutex img_mutex;
     std::lock_guard<std::mutex> lock(img_mutex);
-    std::shared_ptr<Frame> f = std::shared_ptr<Frame>(new Frame());
+    std::shared_ptr<Frame> f = std::make_shared<Frame>();
 
     while (_frame_queue.empty())
         cv::waitKey(1);
@@ -190,21 +190,19 @@ std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(cons
 
             cv::resize(img, img_res, cv::Size(), downsampling, downsampling);
 
-            cam = std::shared_ptr<Camera>(new Camera(img_res, K));
+            cam = std::make_shared<Camera>(img_res, K);
 
         } else if (_cam_configs.at(i)->proj_model == "equidistant") {
 
             cv::resize(imgs.at(i), img_res, cv::Size(), downsampling, downsampling);
 
-            cam = std::shared_ptr<Fisheye>(
-                new Fisheye(img_res, K, _cam_configs.at(i)->proj_model, _cam_configs.at(i)->rmax));
+            cam = std::make_shared<Fisheye>(img_res, K, _cam_configs.at(i)->proj_model, _cam_configs.at(i)->rmax);
 
         } else if (_cam_configs.at(i)->proj_model == "double_sphere") {
 
             cv::resize(imgs.at(i), img_res, cv::Size(), downsampling, downsampling);
 
-            cam = std::shared_ptr<DoubleSphere>(
-                new DoubleSphere(img_res, K, _cam_configs.at(i)->alpha, _cam_configs.at(i)->xi));
+            cam = std::make_shared<DoubleSphere>(img_res, K, _cam_configs.at(i)->alpha, _cam_configs.at(i)->xi);
         }
 
         // Add mask if available
@@ -229,12 +227,12 @@ std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(cons
 }
 
 std::shared_ptr<IMU> ADataProvider::createImuSensor(const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr) {
-    std::shared_ptr<IMU> imu = std::shared_ptr<IMU>(new IMU(_imu_config, acc, gyr));
+    std::shared_ptr<IMU> imu = std::make_shared<IMU>(_imu_config, acc, gyr);
     return imu;
 }
 
 void ADataProvider::addFrameToTheQueue(std::vector<std::shared_ptr<ASensor>> sensors, double time) {
-    std::shared_ptr<Frame> f = std::shared_ptr<Frame>(new Frame());
+    std::shared_ptr<Frame> f = std::make_shared<Frame>();
 
     // Init the Frame
     f->init(sensors, time);
