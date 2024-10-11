@@ -906,7 +906,7 @@ bool AngularAdjustmentCERESAnalytic::landmarkOptimizationNoFov(std::shared_ptr<F
     return true;
 }
 
-bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> &frame0,
+Eigen::MatrixXd AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> &frame0,
                                                          std::shared_ptr<Frame> &frame1) {
 
     // Setup the maps for memory gestion
@@ -986,16 +986,17 @@ bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> 
         for (auto lmk : tlmk.second) {
             _map_lmk_ptpar.emplace(lmk, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
             // For each feature on the frame
-            for (auto feature : lmk->getFeatures()) {
-                if (feature.lock()->getSensor()->getFrame() == frame0) {
+            for (auto &feature : lmk->getFeatures()) {
+                std::shared_ptr<Frame> frame = feature.lock()->getSensor()->getFrame();
+                if (frame == frame0 || frame == frame1) {
 
                     // Compute index and block vectors for reprojection factor
                     std::vector<double *> parameter_blocks;
                     std::vector<int> parameter_idx;
 
                     // For the frame
-                    parameter_idx.push_back(_marginalization->_map_frame_idx.at(frame0));
-                    parameter_blocks.push_back(_map_frame_posepar.at(frame0).values());
+                    parameter_idx.push_back(_marginalization->_map_frame_idx.at(frame));
+                    parameter_blocks.push_back(_map_frame_posepar.at(frame).values());
 
                     // For the lmk
                     parameter_idx.push_back(_marginalization->_map_lmk_idx.at(lmk));
@@ -1005,7 +1006,7 @@ bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> 
                     ceres::CostFunction *cost_fct =
                         new AngularErrCeres_pointxd_dx(feature.lock()->getBearingVectors().at(0),
                                                        feature.lock()->getSensor()->getFrame2SensorTransform(),
-                                                       frame0->getWorld2FrameTransform(),
+                                                       frame->getWorld2FrameTransform(),
                                                        lmk->getPose().translation(),
                                                        (1 / feature.lock()->getSensor()->getFocal()));
                     _marginalization->addMarginalizationBlock(
@@ -1020,7 +1021,7 @@ bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> 
         _marginalization->_lmk_to_keep.clear();
         _marginalization->_marginalization_blocks.clear();
         _marginalization_last->_lmk_to_keep.clear();
-        return false;
+        return Eigen::MatrixXd::Zero(12,12);
     }
 
     // Compute the relative pose factor with NFR
@@ -1049,10 +1050,10 @@ bool AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> 
         Eigen::VectorXd((saes.eigenvalues().array() > 1e-12).select(saes.eigenvalues().array().inverse(), 0))
             .asDiagonal() *
         saes.eigenvectors().transpose();
-    Eigen::MatrixXd cov = J * Ak_inv * J.transpose();
-    frame0->setdTPrior(T_a_b, cov.inverse());
+    Eigen::MatrixXd cov = J * _marginalization->_Sigma_k * J.transpose();
+    Eigen::MatrixXd inf = cov.inverse();
 
-    return true;
+    return inf;
 }
 
 } // namespace isae

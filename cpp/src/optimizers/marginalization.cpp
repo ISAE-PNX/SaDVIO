@@ -349,7 +349,7 @@ double Marginalization::computeKLD(Eigen::MatrixXd A_p, Eigen::MatrixXd A_q) {
 
     Eigen::VectorXd Sigma_p = d.array().inverse();
     Eigen::MatrixXd delta   = U.transpose() * A_q * U * Sigma_p.asDiagonal();
-    double delta_det = delta.determinant();
+    double delta_det        = delta.determinant();
 
     if (delta_det == 0) {
         delta = delta + 0.001 * Eigen::MatrixXd::Identity(delta.rows(), delta.rows());
@@ -365,15 +365,14 @@ bool Marginalization::sparsifyVIO() {
         return false;
 
     // For pose to landmark factors
-    Eigen::Affine3d T_f_w = _frame_to_keep->getWorld2FrameTransform();
-    Eigen::Matrix3d R_f_w = T_f_w.rotation();
+    Eigen::Affine3d T_f_w  = _frame_to_keep->getWorld2FrameTransform();
+    Eigen::Matrix3d R_f_w  = T_f_w.rotation();
     Eigen::Matrix3d t_skew = geometry::skewMatrix(T_f_w.translation());
     for (auto tlmk : _lmk_to_keep) {
         for (auto lmk : tlmk.second) {
-            Eigen::MatrixXd J                      = Eigen::MatrixXd::Zero(3, _n);
-            J.block(0, _map_lmk_idx.at(lmk), 3, 3) = R_f_w;
-            J.block(0, _map_frame_idx.at(_frame_to_keep), 3, 3) =
-                -R_f_w * t_skew;
+            Eigen::MatrixXd J                                       = Eigen::MatrixXd::Zero(3, _n);
+            J.block(0, _map_lmk_idx.at(lmk), 3, 3)                  = R_f_w;
+            J.block(0, _map_frame_idx.at(_frame_to_keep), 3, 3)     = -R_f_w * t_skew;
             J.block(0, _map_frame_idx.at(_frame_to_keep) + 3, 3, 3) = R_f_w;
             Eigen::MatrixXd J_tilde                                 = J * _U;
 
@@ -541,19 +540,9 @@ void Marginalization::preMarginalizeRelative(std::shared_ptr<Frame> &frame0, std
     _map_lmk_idx.clear();
     _map_lmk_inf.clear();
     _map_lmk_prior.clear();
-
-    // We keep only the two poses 
-    _n = 12;
-    _map_frame_idx.emplace(frame0, 0);
-    _map_frame_idx.emplace(frame1, 6);
-    int last_idx = 12;
+    int last_idx = 0;
     _m           = 0;
-
-    // Set to marginalize bias and velocity in VIO case
-    if (frame0->getIMU()) {
-        _m += 18;
-        last_idx += 18;
-    }
+    _n           = 0;
 
     // Set to marginalize all the common landamrks between the frames
     for (auto tlmks : frame0->getLandmarks()) {
@@ -569,7 +558,6 @@ void Marginalization::preMarginalizeRelative(std::shared_ptr<Frame> &frame0, std
                 if (f.lock()->getSensor()->getFrame() == frame1) {
 
                     _lmk_to_marg[tlmks.first].push_back(lmk);
-                    lmk->setMarg();
                     (tlmks.first == "pointxd" ? _m += 3 : _m += 6);
                     _map_lmk_idx.emplace(lmk, last_idx);
                     (tlmks.first == "pointxd" ? last_idx += 3 : last_idx += 6);
@@ -579,6 +567,23 @@ void Marginalization::preMarginalizeRelative(std::shared_ptr<Frame> &frame0, std
                 }
             }
         }
+    }
+
+    // Set the indices of the two poses we keep
+    _map_frame_idx.emplace(frame0, last_idx);
+    last_idx += 6;
+    _n += 6;
+    if (frame0->getIMU()) {
+        _n += 9;
+        last_idx += 9;
+    }
+
+    _map_frame_idx.emplace(frame1, last_idx);
+    last_idx += 6;
+    _n += 6;
+    if (frame1->getIMU()) {
+        _n += 9;
+        last_idx += 9;
     }
 }
 

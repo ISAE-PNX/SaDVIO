@@ -40,7 +40,9 @@ class AOptimizer {
         return true;
     };
 
-    virtual bool marginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) { return true; }
+    virtual Eigen::MatrixXd marginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) {
+        return Eigen::MatrixXd::Identity(6, 6);
+    }
 
   protected:
     bool isMovingFrame(const std::shared_ptr<isae::Frame> &frame,

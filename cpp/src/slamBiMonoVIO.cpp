@@ -400,7 +400,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
             isae::timer::tic();
             outlierRemoval();
             double dt_filter = isae::timer::silentToc();
-            _avg_clean_t = (_avg_clean_t * (_nframes - 1) + dt_filter) / _nframes;
+            _avg_clean_t     = (_avg_clean_t * (_nframes - 1) + dt_filter) / _nframes;
             timing_fe.push_back(dt_filter);
         }
 
@@ -464,7 +464,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
             _frame->setWorld2FrameTransform(T_f_w);
         }
 
-        // To debug when prediction fails 
+        // To debug when prediction fails
         if (!good_it) {
             _frame->getIMU()->estimateTransform(_last_IMU->getLastKF(), _frame, dT);
             std::cout << "IMU dT : \n" << dT.matrix() << std::endl;
