@@ -663,7 +663,7 @@ bool BundleAdjustmentCERESAnalytic::marginalize(std::shared_ptr<Frame> &frame0,
 }
 
 Eigen::MatrixXd BundleAdjustmentCERESAnalytic::marginalizeRelative(std::shared_ptr<Frame> &frame0,
-                                                                    std::shared_ptr<Frame> &frame1) {
+                                                                   std::shared_ptr<Frame> &frame1) {
 
     // Setup the maps for memory gestion
     _map_lmk_ptpar.clear();
@@ -759,8 +759,8 @@ Eigen::MatrixXd BundleAdjustmentCERESAnalytic::marginalizeRelative(std::shared_p
                     parameter_blocks.push_back(_map_lmk_ptpar.at(lmk).values());
 
                     // Add the angular factor in the marginalization scheme
-                    ceres::CostFunction *cost_fct =
-                        new ReprojectionErrCeres_pointxd_dx(feature.lock()->getPoints().at(0), feature.lock()->getSensor(), lmk->getPose());
+                    ceres::CostFunction *cost_fct = new ReprojectionErrCeres_pointxd_dx(
+                        feature.lock()->getPoints().at(0), feature.lock()->getSensor(), lmk->getPose());
                     _marginalization->addMarginalizationBlock(
                         std::make_shared<MarginalizationBlockInfo>(cost_fct, parameter_idx, parameter_blocks));
                 }

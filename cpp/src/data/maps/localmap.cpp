@@ -27,6 +27,7 @@ void LocalMap::discardLastFrame() {
 
     // Discard features from the marginalized frame
     _frames.at(0)->cleanLandmarks();
+    _frames.at(0)->cleanSensors();
 
     _localmap_mtx.lock();
     _removed_frame_poses.push_back(_frames.at(0)->getFrame2WorldTransform());

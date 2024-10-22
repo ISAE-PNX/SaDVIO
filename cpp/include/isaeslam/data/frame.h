@@ -33,6 +33,11 @@ class Frame : public std::enable_shared_from_this<Frame> {
     std::shared_ptr<IMU> getIMU() const { return _imu; }
     void setIMU(std::shared_ptr<IMU> &imu, Eigen::Affine3d T_s_f);
 
+    void cleanSensors() {
+        _imu = nullptr;
+        _sensors.clear();
+    }
+
     // Frame pose
     void setWorld2FrameTransform(Eigen::Affine3d T_f_w) {
         std::lock_guard<std::mutex> lock(_frame_mtx);
