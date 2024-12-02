@@ -79,7 +79,7 @@ void Mesher::run() {
             auto t0 = std::chrono::high_resolution_clock::now();
 
             _mesh_3d->updateMesh(this->createMesh2D(_curr_kf->getSensors().at(0)), _curr_kf);
-            if (_slam_mode == "nofov")
+            if (_slam_mode == "nofov" && _curr_kf->getSensors().size() > 1)
                 _mesh_3d->updateMesh(this->createMesh2D(_curr_kf->getSensors().at(1)), _curr_kf);
 
             auto t1     = std::chrono::high_resolution_clock::now();
