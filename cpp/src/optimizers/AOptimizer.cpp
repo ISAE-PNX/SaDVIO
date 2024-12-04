@@ -205,7 +205,7 @@ bool AOptimizer::singleFrameVIOptimization(std::shared_ptr<isae::Frame> &moving_
 
     // Add IMU residuals
     std::vector<std::shared_ptr<Frame>> frame_vec;
-    if (moving_frame->getIMU()) {
+    if (moving_frame->getIMU() && moving_frame->getIMU()->getLastKF()->getIMU()) {
         frame_vec.push_back(moving_frame);
         frame_vec.push_back(moving_frame->getIMU()->getLastKF());
         std::shared_ptr<Frame> frame = moving_frame->getIMU()->getLastKF();
@@ -241,7 +241,7 @@ bool AOptimizer::singleFrameVIOptimization(std::shared_ptr<isae::Frame> &moving_
     }
 
     // For IMU
-    if (moving_frame->getIMU()) {
+    if (moving_frame->getIMU() && moving_frame->getIMU()->getLastKF()->getIMU()) {
         for (auto &frame_velpar : _map_frame_velpar) {
             frame_velpar.first->getIMU()->setVelocity(frame_velpar.first->getIMU()->getVelocity() +
                                                       frame_velpar.second.getPose().translation());
@@ -408,6 +408,13 @@ bool AOptimizer::localMapVIOptimization(std::shared_ptr<isae::LocalMap> &local_m
         }
     }
 
+    // Set maps for bookeeping;
+    _map_lmk_ptpar.clear();
+    _map_frame_posepar.clear();
+    _map_frame_velpar.clear();
+    _map_frame_dbapar.clear();
+    _map_frame_dbgpar.clear();
+
     // std::cout << summary.FullReport() << std::endl;
 
     return true;
@@ -423,11 +430,6 @@ bool AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Matri
     // Get all moving frames
     std::vector<std::shared_ptr<isae::Frame>> frame_vector;
     local_map->getLastNFramesIn(local_map->getMapSize(), frame_vector);
-
-    // Clear maps
-    _map_frame_velpar.clear();
-    _map_frame_dbapar.clear();
-    _map_frame_dbgpar.clear();
 
     // Add parameter blocks for the velocity of the IMU
     for (auto frame : frame_vector) {
@@ -540,6 +542,14 @@ bool AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Matri
 
     std::cout << summary.FullReport() << std::endl;
     std::cout << "Scale : " << std::exp(lambda[0]) << std::endl;
+
+    // Set maps for bookeeping
+    _map_frame_posepar.clear();
+    _map_lmk_ptpar.clear();
+    _map_lmk_posepar.clear();
+    _map_frame_velpar.clear();
+    _map_frame_dbapar.clear();
+    _map_frame_dbgpar.clear();
 
     return true;
 }

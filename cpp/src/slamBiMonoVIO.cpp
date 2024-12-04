@@ -10,8 +10,13 @@ bool SLAMBiMonoVIO::init() {
         return false;
     }
 
-    // Align the global frame with the gravity direction (if IMU available)
+    // Prior on the first frame, it is set as the origin or the last kf's pose
     Eigen::Affine3d T_i_f = Eigen::Affine3d::Identity();
+    if (getLastKF()) {
+        T_i_f.translation() =  getLastKF()->getWorld2FrameTransform().translation();
+    } 
+
+    // Align the global frame with the gravity direction (if IMU available)
     Eigen::Vector3d acc_mean(0.0, 0.0, 0.0);
     Eigen::Vector3d gyr_mean(0.0, 0.0, 0.0);
     _last_IMU = _frame->getIMU();
@@ -106,6 +111,7 @@ bool SLAMBiMonoVIO::init() {
               << std::endl;
 
     profiling();
+    IMUprofiling();
 
     // Set pb init
     _nkeyframes++;
@@ -542,6 +548,16 @@ bool SLAMBiMonoVIO::frontEndStep() {
         _frame->cleanLandmarks();
     }
 
+    // Init again if there is a big jump
+    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10) {
+
+        bool init_success = this->init();
+        while (!init_success)
+            init_success = this->init();
+        return true;
+
+    }
+
     // Send the frame to the viewer
     _frame_to_display = _frame;
 
@@ -565,7 +581,8 @@ bool SLAMBiMonoVIO::backEndStep() {
                                                              _local_map->getFrames().at(1),
                                                              _slam_param->_config.sparsification == 1);
 
-            _global_map->addFrame(_local_map->getFrames().at(0));
+            // Uncomment below to enable global map
+            // _global_map->addFrame(_local_map->getFrames().at(0));
             _map_mutex.lock();
             _local_map->discardLastFrame();
             _map_mutex.unlock();
@@ -589,6 +606,7 @@ bool SLAMBiMonoVIO::backEndStep() {
 
         // profiling
         profiling();
+        // IMUprofiling();
 
         // 3D Mesh update
         if (_slam_param->_config.mesh3D) {
@@ -613,7 +631,8 @@ void SLAMBiMonoVIO::IMUprofiling() {
         // Write header if not init
         std::ofstream fw_res("log_slam/vio_poses.csv", std::ofstream::out | std::ofstream::trunc);
         fw_res << "timestamp (ns), T_wf(00), T_wf(01), T_wf(02), T_wf(03), T_wf(10), T_wf(11), T_wf(12), "
-               << "T_wf(13), T_wf(20), T_wf(21), T_wf(22), T_wf(23), v_w(0), v_w(1), v_w(2)\n";
+               << "T_wf(13), T_wf(20), T_wf(21), T_wf(22), T_wf(23), v_w(0), v_w(1), v_w(2), ba(0), ba(1), "
+               << "ba(2), bg(0), bg(1), bg(2)\n";
         fw_res.close();
 
     } else {
@@ -623,9 +642,12 @@ void SLAMBiMonoVIO::IMUprofiling() {
         const Eigen::Matrix3d R = _frame->getFrame2WorldTransform().linear();
         Eigen::Vector3d twc     = _frame->getFrame2WorldTransform().translation();
         Eigen::Vector3d vw      = _frame->getIMU()->getVelocity();
+        Eigen::Vector3d ba      = _frame->getIMU()->getBa();
+        Eigen::Vector3d bg      = _frame->getIMU()->getBg();
         fw_res << _frame->getTimestamp() << "," << R(0, 0) << "," << R(0, 1) << "," << R(0, 2) << "," << twc.x() << ","
                << R(1, 0) << "," << R(1, 1) << "," << R(1, 2) << "," << twc.y() << "," << R(2, 0) << "," << R(2, 1)
-               << "," << R(2, 2) << "," << twc.z() << "," << vw.x() << "," << vw.y() << "," << vw.z() << "\n";
+               << "," << R(2, 2) << "," << twc.z() << "," << vw.x() << "," << vw.y() << "," << vw.z() << "," 
+               <<  ba(0) << "," << ba(1) << "," << ba(2) << "," << bg(0) << "," << bg(1) << "," << bg(2) << "\n";
         fw_res.close();
     }
 }

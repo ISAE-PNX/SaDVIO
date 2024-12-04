@@ -200,6 +200,8 @@ bool SLAMMonoVIO::init() {
               << (_last_IMU->getFrame()->getFrame2WorldTransform().rotation().transpose() * _last_IMU->getVelocity())
                      .transpose()
               << std::endl;
+    
+    _frame->getIMU()->setVelocity(_last_IMU->getVelocity());
 
     // Set pb init
     _nkeyframes++;

@@ -147,53 +147,6 @@ bool SLAMBiMono::frontEndStep() {
         _frame->setKeyFrame();
     }
 
-    // // Display keypoints
-    // cv::Mat img_matches;
-
-    // for (const auto &tmatches : _matches_in_time) {
-    //     if (tmatches.second.size() == 0)
-    //         continue;
-
-    //     if (img_matches.empty())
-    //         cv::cvtColor(tmatches.second.at(0).first->getSensor()->getRawData(), img_matches, 8);
-
-    //     if (tmatches.first == "pointxd") {
-
-    //         for (const auto &match : tmatches.second) {
-    //             cv::Scalar colpt   = cv::Scalar(255, 0, 0);
-    //             cv::Scalar colline = cv::Scalar(0, 255, 0);
-
-    //             Eigen::Vector2d pt2d1 = match.first->getPoints().at(0);
-    //             cv::circle(img_matches, cv::Point(pt2d1.x(), pt2d1.y()), 4, colpt, -1);
-    //             Eigen::Vector2d pt2d2 = match.second->getPoints().at(0);
-    //             cv::circle(img_matches, cv::Point(pt2d2.x(), pt2d2.y()), 4, colpt, -1);
-    //             cv::line(img_matches, cv::Point(pt2d1.x(), pt2d1.y()), cv::Point(pt2d2.x(), pt2d2.y()), colline, 2);
-    //         }
-    //     }
-    // }
-
-    // for (const auto &tmatches : _matches_in_time_lmk) {
-    //     if (tmatches.second.size() == 0)
-    //         continue;
-
-    //     if (img_matches.empty())
-    //         cv::cvtColor(tmatches.second.at(0).first->getSensor()->getRawData(), img_matches, 8);
-
-    //     if (tmatches.first == "pointxd") {
-
-    //         for (const auto &match : tmatches.second) {
-    //             cv::Scalar colpt   = cv::Scalar(255, 0, 0);
-    //             cv::Scalar colline = cv::Scalar(0, 255, 0);
-
-    //             Eigen::Vector2d pt2d1 = match.first->getPoints().at(0);
-    //             cv::circle(img_matches, cv::Point(pt2d1.x(), pt2d1.y()), 4, colpt, -1);
-    //             Eigen::Vector2d pt2d2 = match.second->getPoints().at(0);
-    //             cv::circle(img_matches, cv::Point(pt2d2.x(), pt2d2.y()), 4, colpt, -1);
-    //             cv::line(img_matches, cv::Point(pt2d1.x(), pt2d1.y()), cv::Point(pt2d2.x(), pt2d2.y()), colline, 2);
-    //         }
-    //     }
-    // }
-    // cv::imwrite("img_matches.png", img_matches);
 
     if (shouldInsertKeyframe(_frame)) {
 
@@ -286,7 +239,8 @@ bool SLAMBiMono::backEndStep() {
                                                              _slam_param->_config.sparsification == 1);
 
             _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
-            _global_map->addFrame(_local_map->getFrames().at(0));
+            // Uncomment below to enable global map
+            // _global_map->addFrame(_local_map->getFrames().at(0));
 
             _map_mutex.lock();
             _local_map->discardLastFrame();
