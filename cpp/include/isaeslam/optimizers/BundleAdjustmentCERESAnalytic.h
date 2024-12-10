@@ -13,6 +13,8 @@ class BundleAdjustmentCERESAnalytic : public AOptimizer {
     virtual bool
     marginalize(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1, bool enable_sparsif) override;
 
+    virtual Eigen::MatrixXd marginalizeRelative(std::shared_ptr<Frame> &frame0, std::shared_ptr<Frame> &frame1) override;
+
   protected:
     uint addResidualsLocalMap(ceres::Problem &problem,
                               ceres::LossFunction *loss_function,

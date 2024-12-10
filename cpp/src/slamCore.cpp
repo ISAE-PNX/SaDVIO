@@ -225,8 +225,8 @@ typed_vec_match SLAMCore::epipolarFiltering(std::shared_ptr<ImageSensor> &cam0,
                                             std::shared_ptr<ImageSensor> &cam1,
                                             typed_vec_match matches) {
     typed_vec_match valid_matches;
-    Eigen::Affine3d T_c0_c1 = cam0->getWorld2SensorTransform() * cam1->getSensor2WorldTransform();
-    Eigen::Vector3d epi_line = - T_c0_c1.translation();
+    Eigen::Affine3d T_c0_c1  = cam0->getWorld2SensorTransform() * cam1->getSensor2WorldTransform();
+    Eigen::Vector3d epi_line = -T_c0_c1.translation();
     epi_line /= epi_line.norm();
 
     // Epipolar filtering for tracks_in_time, only for punctual landmarks
@@ -476,6 +476,12 @@ void SLAMCore::profiling() {
                << "T_wf(13), T_wf(20), T_wf(21), T_wf(22), T_wf(23)\n";
         fw_res.close();
 
+        // std::ofstream fw_res1("log_slam/info_mat.csv", std::ofstream::out | std::ofstream::trunc);
+        // fw_res1 << "Im(00), Im(11), Im(22), Im(33), Im(44), Im(55), "
+        //        << "If(00), If(11), If(22), If(33), If(44), If(55), "
+        //        << "t_norm, r_norm, n_lmk\n";
+        // fw_res1.close();
+
         // For timing statistics
         // // Clean profiling file
         // std::ofstream fw_prof_fefr("log_slam/timing_fe_fr.csv",
@@ -502,7 +508,7 @@ void SLAMCore::profiling() {
         if (getLastKF()) {
             std::shared_ptr<Frame> f = getLastKF();
             std::ofstream fw_res("log_slam/results.csv", std::ofstream::out | std::ofstream::app);
-            Eigen::Affine3d T_w_f = f->getFrame2WorldTransform();
+            Eigen::Affine3d T_w_f   = f->getFrame2WorldTransform();
             const Eigen::Matrix3d R = T_w_f.linear();
             Eigen::Vector3d twc     = T_w_f.translation();
             fw_res << f->getTimestamp() << "," << _nframes << "," << R(0, 0) << "," << R(0, 1) << "," << R(0, 2) << ","

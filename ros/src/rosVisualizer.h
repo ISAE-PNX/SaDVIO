@@ -549,18 +549,18 @@ class RosVisualizer : public rclcpp::Node {
             if (SLAM->_frame_to_display) {
                 publishImage(SLAM->_frame_to_display);
                 publishFrame(SLAM->_frame_to_display);
-                SLAM->_frame_to_display = nullptr;
+                SLAM->_frame_to_display.reset();
             }
 
             if (SLAM->_local_map_to_display) {
                 publishMap(SLAM->_local_map_to_display);
                 publishLocalMapCloud(SLAM->_local_map_to_display);
-                SLAM->_local_map_to_display = nullptr;
+                SLAM->_local_map_to_display.reset();
             }
 
             if (SLAM->_mesh_to_display) {
                 publishMesh(SLAM->_mesh_to_display);
-                SLAM->_mesh_to_display = nullptr;
+                SLAM->_mesh_to_display.reset();
             }
 
         }

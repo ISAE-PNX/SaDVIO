@@ -241,9 +241,9 @@ TEST_F(ImuTest, accelerating) {
 
     // Save predictions
     Eigen::MatrixXd prediction_cov = last_imu->getCov();
-    Eigen::Vector3d prediction_r = geometry::log_so3(last_imu->getDeltaR());
-    Eigen::Vector3d prediction_v = last_imu->getDeltaV();
-    Eigen::Vector3d prediction_p = last_imu->getDeltaP();
+    Eigen::Vector3d prediction_r   = geometry::log_so3(last_imu->getDeltaR());
+    Eigen::Vector3d prediction_v   = last_imu->getDeltaV();
+    Eigen::Vector3d prediction_p   = last_imu->getDeltaP();
 
     // Compute covariance with MC
     std::vector<Eigen::Vector3d> v_vec, p_vec, r_vec;
@@ -314,16 +314,15 @@ TEST_F(ImuTest, accelerating) {
     r_mean /= (double)N;
     Eigen::MatrixXd Sigma = Eigen::MatrixXd::Zero(9, 9);
     for (int k = 0; k < N; k++) {
-        Eigen::VectorXd xi = Eigen::VectorXd::Zero(9);
-        xi.block(0, 0, 3, 1)   = r_vec.at(k) - prediction_r;
-        xi.block(3, 0, 3, 1)   = v_vec.at(k) - prediction_v;
-        xi.block(6, 0, 3, 1)   = p_vec.at(k) - prediction_p;
+        Eigen::VectorXd xi   = Eigen::VectorXd::Zero(9);
+        xi.block(0, 0, 3, 1) = r_vec.at(k) - prediction_r;
+        xi.block(3, 0, 3, 1) = v_vec.at(k) - prediction_v;
+        xi.block(6, 0, 3, 1) = p_vec.at(k) - prediction_p;
         Sigma += xi * xi.transpose();
     }
 
     Sigma /= (double)(N - 1);
     ASSERT_NEAR((Sigma - prediction_cov).trace(), 0, 1e-3);
-
 }
 
 TEST_F(ImuTest, checkJacobiansBiasGyr) {
@@ -851,6 +850,71 @@ TEST_F(ImuTest, simuEuroc) {
                     0,
                     0.02);
     }
+
+    // TEST Bias Estimation
+    _imu_cfg->bgyr_noise                    = 1.9393e-03;
+    _imu_cfg->acc_noise                     = 3.0e-2;
+    _imu_cfg->bacc_noise                    = 3.0000e-2;
+    idx_start                               = 2000;                                 // Start after 10 seconds
+    dt_kf                                   = 0.5;                                  // t between kf
+    std::shared_ptr<LocalMap> local_map_vio = std::make_shared<LocalMap>(0, 10, 0); // The sliding window
+    std::unordered_map<double, Eigen::Affine3d> map_ts_gt_vio; // A map to stack the gt poses of the local map
+    Eigen::Vector3d ba(0.1, 0.2, -0.1);
+    Eigen::Vector3d bg(0.4, -0.2, 0.01);
+
+    // Set the first frame
+    frame0 = std::shared_ptr<Frame>(new Frame());
+    imu0   = std::make_shared<IMU>(_imu_cfg, meas_vec.at(idx_start).first + ba, meas_vec.at(idx_start).second + bg);
+    frame0->init(imu0, ts_vec.at(idx_start));
+    T_w_f0 = pose_vec.at(idx_start);
+    map_ts_gt_vio.emplace(ts_vec.at(idx_start), T_w_f0);
+    frame0->setWorld2FrameTransform(T_w_f0.inverse());
+    frame0->setPrior(T_w_f0.inverse(), 100 * Vector6d::Ones());
+    frame0->setKeyFrame();
+    imu0->setLastKF(frame0);
+    imu0->setVelocity(vel_vec.at(idx_start));
+    local_map_vio->addFrame(frame0);
+    tsp = ts_vec.at(idx_start);
+
+    for (uint i = idx_start + 1; i < meas_vec.size(); i++) {
+        std::shared_ptr<Frame> frame = std::shared_ptr<Frame>(new Frame());
+        ts                           = ts_vec.at(i);
+        dt                           = (ts - tsp) * 1e-9;
+
+        // Create and process IMU
+        std::shared_ptr<IMU> imu =
+            std::make_shared<IMU>(_imu_cfg, meas_vec.at(i).first + ba, meas_vec.at(i).second + bg);
+        frame->init(imu, ts);
+        imu->setLastKF(frame0);
+        imu->setBa(frame0->getIMU()->getBa());
+        imu->setBg(frame0->getIMU()->getBg());
+        imu->setLastIMU(imu0);
+        imu->processIMU();
+        imu0 = imu;
+
+        // Compute scaled pose and velocity
+        Eigen::Affine3d T_w_f = pose_vec.at(i);
+        map_ts_gt_vio.emplace(ts, T_w_f);
+        frame->setPrior(T_w_f.inverse(), 100 * Vector6d::Ones());
+        frame->setWorld2FrameTransform(T_w_f.inverse());
+        imu0->setVelocity(vel_vec.at(i));
+
+        // Vote KF
+        if (dt > dt_kf) {
+            frame->setKeyFrame();
+            local_map_vio->addFrame(frame);
+            ceres_ba.localMapVIOptimization(local_map_vio, 1);
+            frame0 = frame;
+            tsp    = ts;
+        }
+
+        // Break the loop if enough KF
+        if (local_map_vio->getMapSize() == 30)
+            break;
+    }
+    
+    ASSERT_NEAR((local_map_vio->getFrames().at(29)->getIMU()->getBa() - ba).norm(), 0, 0.02);
+    ASSERT_NEAR((local_map_vio->getFrames().at(29)->getIMU()->getBg() - bg).norm(), 0, 0.02);
 }
 
 TEST_F(ImuTest, TestPreInteg) {

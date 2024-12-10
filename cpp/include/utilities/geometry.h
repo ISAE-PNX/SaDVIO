@@ -138,10 +138,10 @@ inline Eigen::Matrix3d exp_so3(const Eigen::Vector3d &v) {
         // Near |phi|==0, use first order Taylor expansion
         Rot = Eigen::Matrix3d::Identity() + geometry::skewMatrix(v);
     } else {
-        double ca            = cos(angle);
         Eigen::Vector3d axis = v / angle;
-        Rot                  = ca * Eigen::Matrix3d::Identity() + (1. - ca) * (axis * axis.transpose()) +
-              sin(angle) * geometry::skewMatrix(axis);
+        Eigen::Matrix3d skew = geometry::skewMatrix(axis);
+        Rot                  = Eigen::Matrix3d::Identity() + (1. - cos(angle)) * skew * skew +
+              sin(angle) * skew;
     }
     return Rot;
 }

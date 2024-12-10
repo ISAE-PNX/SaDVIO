@@ -4,12 +4,12 @@ namespace isae {
 
 bool IMU::processIMU() {
 
-    if (!_last_kf || !_last_IMU || !_frame) {
+    if (!_last_kf || !_last_IMU || !_frame.lock()) {
         return false;
     }
 
     // Case of wrong sync, return false
-    if (_frame->getTimestamp() < _last_IMU->getFrame()->getTimestamp()) {
+    if (_frame.lock()->getTimestamp() < _last_IMU->getFrame()->getTimestamp()) {
         return false;
     }
 
@@ -18,7 +18,7 @@ bool IMU::processIMU() {
     _bg = _last_IMU->getBg();
 
     // Compute increments
-    double dt = (_frame->getTimestamp() - _last_IMU->getFrame()->getTimestamp()) * 1e-9;
+    double dt = (_frame.lock()->getTimestamp() - _last_IMU->getFrame()->getTimestamp()) * 1e-9;
 
     if (dt > 1) {
         dt = 1 / _rate_hz;
@@ -38,7 +38,7 @@ bool IMU::processIMU() {
     Eigen::Affine3d T_w_f            = _last_IMU->getFrame()->getWorld2FrameTransform().inverse();
     T_w_f.affine().block(0, 0, 3, 3) = R_w_fp * dR;
     T_w_f.affine().block(0, 3, 3, 1) += _last_IMU->getVelocity() * dt + R_w_fp * dp + g * dt22;
-    _frame->setWorld2FrameTransform(T_w_f.inverse());
+    _frame.lock()->setWorld2FrameTransform(T_w_f.inverse());
 
     // For covariance computation
     Eigen::MatrixXd B   = Eigen::Matrix<double, 9, 6>::Zero();

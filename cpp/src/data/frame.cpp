@@ -31,6 +31,7 @@ void Frame::init(std::shared_ptr<IMU> &imu, unsigned long long timestamp) {
 
     _imu       = imu;
     _imu->setFrame(this->shared_from_this());
+    _imu->setCurFrame(this->shared_from_this());
 }
 
 void Frame::init(const std::vector<std::shared_ptr<ASensor>> &sensors, unsigned long long timestamp) {
@@ -44,6 +45,7 @@ void Frame::init(const std::vector<std::shared_ptr<ASensor>> &sensors, unsigned 
     for (auto sensor : sensors) {
         if (sensor->getType() == "imu") {
             _imu = std::static_pointer_cast<IMU>(sensor);
+            _imu->setCurFrame(this->shared_from_this());
         }
         if (sensor->getType() == "image") {
             _sensors.push_back(std::static_pointer_cast<ImageSensor>(sensor));
@@ -55,6 +57,7 @@ void Frame::init(const std::vector<std::shared_ptr<ASensor>> &sensors, unsigned 
 void Frame::setIMU(std::shared_ptr<IMU> &imu, Eigen::Affine3d T_s_f) {
     _imu = imu;
     _imu->setFrame(this->shared_from_this());
+    _imu->setCurFrame(this->shared_from_this());
     _imu->setFrame2SensorTransform(T_s_f);
 }
 

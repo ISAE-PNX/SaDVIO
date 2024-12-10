@@ -2,7 +2,7 @@
 
 namespace isae {
 
-Eigen::Affine3d ASensor::getWorld2SensorTransform() { return _T_s_f * this->_frame->getWorld2FrameTransform(); }
+Eigen::Affine3d ASensor::getWorld2SensorTransform() { return _T_s_f * this->_frame.lock()->getWorld2FrameTransform(); }
 
 Eigen::Affine3d ASensor::getSensor2WorldTransform() { return this->getWorld2SensorTransform().inverse(); }
 

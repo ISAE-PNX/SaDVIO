@@ -1,5 +1,6 @@
 #include "isaeslam/optimizers/AngularAdjustmentCERESAnalytic.h"
 #include "isaeslam/slamCore.h"
+#include <opencv2/core.hpp>
 
 namespace isae {
 
@@ -146,8 +147,9 @@ bool SLAMBiMono::frontEndStep() {
         _frame->setKeyFrame();
     }
 
+
     if (shouldInsertKeyframe(_frame)) {
-        
+
         // Frame is added
         _nkeyframes++;
 
@@ -235,8 +237,10 @@ bool SLAMBiMono::backEndStep() {
                 _slam_param->getOptimizerBack()->marginalize(_local_map->getFrames().at(0),
                                                              _local_map->getFrames().at(1),
                                                              _slam_param->_config.sparsification == 1);
+
             _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
-            _global_map->addFrame(_local_map->getFrames().at(0));
+            // Uncomment below to enable global map
+            // _global_map->addFrame(_local_map->getFrames().at(0));
 
             _map_mutex.lock();
             _local_map->discardLastFrame();

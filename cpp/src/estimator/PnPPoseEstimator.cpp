@@ -8,6 +8,9 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
                                                 vec_match &matches,
                                                 Eigen::Affine3d &dT,
                                                 Eigen::MatrixXd &covdT) {
+    
+    if (matches.size() < 5)
+        return false;
 
     std::vector<int> outliersidx;
 
@@ -42,9 +45,6 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
             p2d_vector.push_back({ray_cam2.x() / ray_cam2.z(), ray_cam2.y() / ray_cam2.z()});
         }
     }
-
-    if (p2d_vector.size() < 5)
-        return false;
 
     // Init the transformation for pnp
     Eigen::Affine3d T_cam1_f1 = matches.at(0).first->getSensor()->getFrame2SensorTransform();

@@ -14,7 +14,7 @@ ADataProvider::ADataProvider(std::string path, Config slam_config) {
 std::shared_ptr<Frame> ADataProvider::next() {
     std::mutex img_mutex;
     std::lock_guard<std::mutex> lock(img_mutex);
-    std::shared_ptr<Frame> f = std::shared_ptr<Frame>(new Frame());
+    std::shared_ptr<Frame> f = std::make_shared<Frame>();
 
     while (_frame_queue.empty())
         cv::waitKey(1);
@@ -159,8 +159,8 @@ void ADataProvider::loadCamConfig(YAML::Node cam_node) {
     cam_cfg->ros_topic = cam_node["topic"].as<std::string>();
     _cam_configs.push_back(cam_cfg);
 }
-std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(std::vector<cv::Mat> imgs,
-                                                                            std::vector<cv::Mat> masks) {
+std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(const std::vector<cv::Mat> &imgs,
+                                                                            const std::vector<cv::Mat> &masks) {
     std::vector<std::shared_ptr<ImageSensor>> sensor_vector;
 
     isae::timer::tic();
@@ -190,21 +190,19 @@ std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(std:
 
             cv::resize(img, img_res, cv::Size(), downsampling, downsampling);
 
-            cam = std::shared_ptr<Camera>(new Camera(img_res, K));
+            cam = std::make_shared<Camera>(img_res, K);
 
         } else if (_cam_configs.at(i)->proj_model == "equidistant") {
 
             cv::resize(imgs.at(i), img_res, cv::Size(), downsampling, downsampling);
 
-            cam = std::shared_ptr<Fisheye>(
-                new Fisheye(img_res, K, _cam_configs.at(i)->proj_model, _cam_configs.at(i)->rmax));
+            cam = std::make_shared<Fisheye>(img_res, K, _cam_configs.at(i)->proj_model, _cam_configs.at(i)->rmax);
 
         } else if (_cam_configs.at(i)->proj_model == "double_sphere") {
 
             cv::resize(imgs.at(i), img_res, cv::Size(), downsampling, downsampling);
 
-            cam = std::shared_ptr<DoubleSphere>(
-                new DoubleSphere(img_res, K, _cam_configs.at(i)->alpha, _cam_configs.at(i)->xi));
+            cam = std::make_shared<DoubleSphere>(img_res, K, _cam_configs.at(i)->alpha, _cam_configs.at(i)->xi);
         }
 
         // Add mask if available
@@ -228,13 +226,13 @@ std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(std:
     return sensor_vector;
 }
 
-std::shared_ptr<IMU> ADataProvider::createImuSensor(Eigen::Vector3d acc, Eigen::Vector3d gyr) {
-    std::shared_ptr<IMU> imu = std::shared_ptr<IMU>(new IMU(_imu_config, acc, gyr));
+std::shared_ptr<IMU> ADataProvider::createImuSensor(const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr) {
+    std::shared_ptr<IMU> imu = std::make_shared<IMU>(_imu_config, acc, gyr);
     return imu;
 }
 
 void ADataProvider::addFrameToTheQueue(std::vector<std::shared_ptr<ASensor>> sensors, double time) {
-    std::shared_ptr<Frame> f = std::shared_ptr<Frame>(new Frame());
+    std::shared_ptr<Frame> f = std::make_shared<Frame>();
 
     // Init the Frame
     f->init(sensors, time);
@@ -242,6 +240,8 @@ void ADataProvider::addFrameToTheQueue(std::vector<std::shared_ptr<ASensor>> sen
     // add to queue
     _frame_queue.push(f);
 }
+
+void ADataProvider::addFrameToTheQueue(std::shared_ptr<Frame> frame) { _frame_queue.push(frame); }
 
 void EUROCGrabber::load_filenames() {
     // Load cam0
@@ -408,9 +408,11 @@ bool EUROCGrabber::addNextFrame() {
             std::cout << "\n Throw img1 -- Sync error : " << (cam0_ts - cam1_ts) << "\n";
         } else {
 
-            std::string path_img0 = _folder_path + "/cam0/data/" +  std::to_string((unsigned long long)_cam0_timestamp_queue.front()) + ".png";
-            std::string path_img1 = _folder_path + "/cam1/data/" + std::to_string((unsigned long long)_cam1_timestamp_queue.front()) + ".png";
-            cv::Mat img_left      = cv::imread(path_img0, cv::IMREAD_GRAYSCALE);
+            std::string path_img0 = _folder_path + "/cam0/data/" +
+                                    std::to_string((unsigned long long)_cam0_timestamp_queue.front()) + ".png";
+            std::string path_img1 = _folder_path + "/cam1/data/" +
+                                    std::to_string((unsigned long long)_cam1_timestamp_queue.front()) + ".png";
+            cv::Mat img_left = cv::imread(path_img0, cv::IMREAD_GRAYSCALE);
             if (img_left.empty()) {
                 std::cerr << path_img0 << " not opened " << std::endl;
                 _cam0_timestamp_queue.pop();

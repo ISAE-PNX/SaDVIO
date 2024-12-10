@@ -233,12 +233,10 @@ void Mesh3D::projectMesh() {
         std::vector<Eigen::Vector2d> triangle_2d;
         for (auto &vtx : polygon->getVertices()) {
 
-
             // Prepare variables for projection
             std::vector<Eigen::Vector2d> p2ds;
             Eigen::Affine3d T_w_vtx = Eigen::Affine3d::Identity();
             T_w_vtx.translation()   = vtx->getVertexPosition();
-
 
             // Check only infinite values (we can use triangles outside of the image)
             if (_cam0->project(T_w_vtx, vtx->getLmk()->getModel(), Eigen::Vector3d::Ones(), p2ds)) {
@@ -437,6 +435,12 @@ bool Mesh3D::checkPolygon(std::shared_ptr<Polygon> polygon) {
     if (_reference_frame->getSensors().size() == 1)
         return true;
 
+    Eigen::Affine3d T_cam0_cam1 = _cam0->getFrame2SensorTransform() * _cam1->getFrame2SensorTransform().inverse();
+
+    // Ignore nofov setups
+    if (geometry::log_so3(T_cam0_cam1.rotation()).norm() > 0.5)
+        return true;
+
     // Project every polygon in sensor 0 of the current frame
     Eigen::Vector3d t_w_cam0 = _T_w_cam0.translation();
 
@@ -546,10 +550,10 @@ void Mesh3D::generatePointCloud() {
     std::mutex mtx;
     auto generate_pts = [height, T_cam0_w, &mtx, this](int col_start, int col_end) {
         for (int i = 0; i < height; i++) {
-            if (i % 4 != 0)
+            if (i % 6 != 0)
                 continue;
             for (int j = col_start; j < col_end + 1; j++) {
-                if (j % 4 != 0)
+                if (j % 6 != 0)
                     continue;
 
                 Eigen::Vector2d p((double)i, (double)j);
@@ -625,29 +629,93 @@ void Mesh3D::generatePointCloud() {
         th.join();
     }
 
-    // for (auto polygon : _polygons) {
+    // Cast on the other camera if nofov
+    Eigen::Affine3d T_cam0_cam1 = _cam0->getFrame2SensorTransform() * _cam1->getFrame2SensorTransform().inverse();
+    if (geometry::log_so3(T_cam0_cam1.rotation()).norm() > 0.5) {
 
-    //     std::vector<Eigen::Vector3d> triangle_3d, samples;
-    //     for (auto vertex : polygon->getVertices()) {
-    //         triangle_3d.push_back(vertex->getLmk()->getPose().translation());
-    //     }
+        Eigen::Affine3d T_cam1_w = _cam1->getWorld2SensorTransform();
 
-    //     samples = sampleTriangle(triangle_3d);
+        // Function to cast rays and fill the point cloud on a subset of the image
+        auto generate_pts_cam1 = [height, T_cam1_w, &mtx, this](int col_start, int col_end) {
+            for (int i = 0; i < height; i++) {
+                if (i % 6 != 0)
+                    continue;
+                for (int j = col_start; j < col_end + 1; j++) {
+                    if (j % 6 != 0)
+                        continue;
 
-    //     for (auto t_w_p : samples) {
-    //         pcl::PointNormal pt;
-    //         Eigen::Vector3d normal(1,0,0);
+                    Eigen::Vector2d p((double)i, (double)j);
+                    std::vector<std::shared_ptr<Polygon>> crossed_triangles;
 
-    //         pt.x        = t_w_p.x();
-    //         pt.y        = t_w_p.y();
-    //         pt.z        = t_w_p.z();
-    //         pt.normal_x = normal.x();
-    //         pt.normal_y = normal.y();
-    //         pt.normal_z = normal.z();
+                    // Parse all 2d triangles
+                    for (auto &poly_tri : _map_poly_tri2d) {
+                        if (geometry::pointInTriangle(p, poly_tri.second))
+                            crossed_triangles.push_back(poly_tri.first);
+                    }
 
-    //         _pcl_cloud.points.push_back(pt);
-    //     }
-    // }
+                    // Retain the closest triangle
+                    std::shared_ptr<Polygon> closest_triangle;
+                    Eigen::Vector3d v = _cam1->getRayCamera(p);
+                    double min_depth  = 1000;
+                    double min_score  = 100000;
+
+                    for (auto &triangle : crossed_triangles) {
+
+                        Eigen::Vector3d n = T_cam1_w.rotation() * triangle->getPolygonNormal();
+
+                        Eigen::Vector3d t_cam0_a = T_cam1_w * triangle->getVertices().at(0)->getVertexPosition();
+                        double depth             = (t_cam0_a.dot(n) / v.dot(n));
+                        double score             = triangle->getScore();
+
+                        if ((v * depth - t_cam0_a).norm() < 1e-2) {
+                            t_cam0_a = T_cam1_w * triangle->getVertices().at(1)->getVertexPosition();
+                            depth    = (t_cam0_a.dot(n) / v.dot(n));
+                        }
+
+                        // Ignore negative depth
+                        if (depth < 0.25 || depth > 5)
+                            continue;
+
+                        if (score < min_score) {
+                            min_score        = score;
+                            min_depth        = depth;
+                            closest_triangle = triangle;
+                        }
+                    }
+
+                    // Save the point if valid
+                    Eigen::Affine3d T_w_cam1 = T_cam1_w.inverse();
+                    if (min_depth < 1000) {
+                        pcl::PointNormal pt;
+                        Eigen::Vector3d normal = closest_triangle->getPolygonNormal();
+                        Eigen::Vector3d t_w_p  = T_w_cam1 * (min_depth * v);
+
+                        pt.x        = t_w_p.x();
+                        pt.y        = t_w_p.y();
+                        pt.z        = t_w_p.z();
+                        pt.normal_x = normal.x();
+                        pt.normal_y = normal.y();
+                        pt.normal_z = normal.z();
+
+                        mtx.lock();
+                        _pcl_cloud.points.push_back(pt);
+                        mtx.unlock();
+                    }
+                }
+            }
+        };
+
+        // Launch threads
+        threads.clear();
+        for (int k = 0; k < n_threads - 1; k++) {
+            threads.push_back(std::thread(generate_pts_cam1, k * chunk, (k + 1) * chunk));
+        }
+        threads.push_back(std::thread(generate_pts_cam1, chunk * (n_threads - 1), width));
+
+        for (auto &th : threads) {
+            th.join();
+        }
+    }
 
     bool write_clouds = false;
     if (write_clouds && _pcl_cloud.points.size() > 0) {
