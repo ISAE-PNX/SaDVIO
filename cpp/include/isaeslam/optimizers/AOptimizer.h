@@ -29,7 +29,9 @@ class AOptimizer {
 
     bool localMapVIOptimization(std::shared_ptr<isae::LocalMap> &local_map, const size_t fixed_frame_number = 0);
 
-    bool VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Matrix3d &R_w_i, bool optim_scale = false);
+    double VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Matrix3d &R_w_i, bool optim_scale = false);
+
+    double VIInitBias(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Matrix3d &R_w_i, bool optim_scale = false);
 
     virtual bool landmarkOptimizationNoFov(std::shared_ptr<Frame> &f,
                                            std::shared_ptr<Frame> &fp,

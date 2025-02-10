@@ -4,14 +4,15 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
 
+#include "sensor_msgs/point_cloud2_iterator.hpp"
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
-#include <pcl_conversions/pcl_conversions.h>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/point_field.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <std_msgs/msg/header.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -22,6 +23,57 @@
 #include "isaeslam/slamCore.h"
 
 // namespace isae {
+
+sensor_msgs::msg::PointCloud2::SharedPtr convertToPointCloud2(const std::vector<Eigen::Vector3d> &points) {
+    // Create a PointCloud2 message
+    auto point_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
+
+    // Set the header
+    point_cloud_msg->header.frame_id = "world"; // Set the frame ID as needed
+    point_cloud_msg->header.stamp    = rclcpp::Clock().now();
+
+    // Set the point step and row step
+    point_cloud_msg->point_step = sizeof(float) * 3;
+    point_cloud_msg->row_step   = point_cloud_msg->point_step * point_cloud_msg->width;
+
+    // Set the is_dense flag
+    point_cloud_msg->is_dense = true;
+
+    // Set the height and width of the point cloud
+    point_cloud_msg->height = 1;
+    point_cloud_msg->width  = points.size();
+
+    // Set the fields of the point cloud
+    sensor_msgs::PointCloud2Modifier modifier(*point_cloud_msg);
+    modifier.setPointCloud2Fields(3,
+                                  "x",
+                                  1,
+                                  sensor_msgs::msg::PointField::FLOAT32,
+                                  "y",
+                                  1,
+                                  sensor_msgs::msg::PointField::FLOAT32,
+                                  "z",
+                                  1,
+                                  sensor_msgs::msg::PointField::FLOAT32);
+    // Resize the data vector
+    point_cloud_msg->data.resize(points.size() * sizeof(float) * 3);
+
+    // Copy the data from the Eigen vectors to the PointCloud2 message
+    sensor_msgs::PointCloud2Iterator<float> iter_x(*point_cloud_msg, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(*point_cloud_msg, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(*point_cloud_msg, "z");
+
+    for (const auto &point : points) {
+        *iter_x = point.x();
+        *iter_y = point.y();
+        *iter_z = point.z();
+        ++iter_x;
+        ++iter_y;
+        ++iter_z;
+    }
+
+    return point_cloud_msg;
+}
 
 class RosVisualizer : public rclcpp::Node {
 
@@ -343,32 +395,6 @@ class RosVisualizer : public rclcpp::Node {
         _pub_vo_traj->publish(_vo_traj_msg);
     }
 
-    void writeLocalMapCloud(const std::shared_ptr<isae::AMap> map) {
-        isae::typed_vec_landmarks ldmks = map->getLandmarks();
-
-        // Build pcl cloud
-        pcl::PointCloud<pcl::PointXYZ> pcl_cloud;
-
-        for (auto &l : ldmks["pointxd"]) {
-
-            // Check lmk
-            if (l->isOutlier())
-                continue;
-            Eigen::Vector3d pt = l->getPose().translation();
-
-            // Add point to pcl cloud
-            pcl_cloud.points.push_back(pcl::PointXYZ(pt.x(), pt.y(), pt.z()));
-
-        }
-
-        if (pcl_cloud.points.size() > 0) {
-            pcl_cloud.width  = pcl_cloud.points.size();
-            pcl_cloud.height = 1;
-            pcl::io::savePCDFileASCII("local_map.pcd", pcl_cloud);
-        }
-
-    }
-
     void publishLocalMapCloud(const std::shared_ptr<isae::AMap> map, const bool no_fov_mode = false) {
         isae::typed_vec_landmarks ldmks = map->getLandmarks();
 
@@ -508,7 +534,7 @@ class RosVisualizer : public rclcpp::Node {
                 p_vector.push_back(p);
 
                 // Color triangle with its slope
-                double trav_score = polygon->getPolygonNormal().dot(Eigen::Vector3d(0,0,1));
+                double trav_score = polygon->getPolygonNormal().dot(Eigen::Vector3d(0, 0, 1));
                 color.r           = (1 - trav_score);
                 color.g           = trav_score;
                 color.b           = 0;
@@ -529,15 +555,12 @@ class RosVisualizer : public rclcpp::Node {
         _pub_marker->publish(_mesh_line_list);
 
         // Publish the dense point cloud from the mesh 3D
-
-        pcl::PointCloud<pcl::PointNormal> pcl_cloud = mesh->getPointCloud();
-        if (pcl_cloud.empty())
+        std::vector<Eigen::Vector3d> pt_cloud = mesh->getPointCloud();
+        if (pt_cloud.empty())
             return;
+
         sensor_msgs::msg::PointCloud2::SharedPtr pc2_msg_ = std::make_shared<sensor_msgs::msg::PointCloud2>();
-        pcl::toROSMsg(pcl_cloud, *pc2_msg_);
-        // pc2_msg_->header.frame_id = std::to_string(mesh->getFrame()->_id);
-        pc2_msg_->header.frame_id = "world";
-        pc2_msg_->header.stamp    = rclcpp::Node::now();
+        pc2_msg_                                          = convertToPointCloud2(pt_cloud);
 
         _pub_cloud->publish(*pc2_msg_);
     }
@@ -545,7 +568,7 @@ class RosVisualizer : public rclcpp::Node {
     void runVisualizer(std::shared_ptr<isae::SLAMCore> SLAM) {
 
         while (true) {
-            
+
             if (SLAM->_frame_to_display) {
                 publishImage(SLAM->_frame_to_display);
                 publishFrame(SLAM->_frame_to_display);
@@ -562,7 +585,6 @@ class RosVisualizer : public rclcpp::Node {
                 publishMesh(SLAM->_mesh_to_display);
                 SLAM->_mesh_to_display.reset();
             }
-
         }
     }
 

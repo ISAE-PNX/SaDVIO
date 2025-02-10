@@ -486,8 +486,18 @@ TEST_F(ImuTest, predictionPositionVelocity) {
     ASSERT_NEAR((cur_imu->getVelocity() - Eigen::Vector3d(0, 0, 1)).norm(), 0, 1e-2);
     ASSERT_NEAR((cur_frame->getFrame2WorldTransform().rotation().transpose() * T_i_f.rotation()).trace(), 3, 1e-5);
 
+    // Change the scale
+    double scale = 0.5;
+    Eigen::Affine3d T_flast_w = lastKF->getWorld2FrameTransform();
+    Eigen::Affine3d T_fcurr_w = cur_frame->getWorld2FrameTransform();
+    T_fcurr_w.translation() *= scale;
+    T_flast_w.translation() *= scale;
+    lastKF->setWorld2FrameTransform(T_flast_w);
+    cur_frame->setWorld2FrameTransform(T_fcurr_w);
+
     // Test IMU Factor INIT
     ceres::CostFunction *cost_fct1 = new IMUFactorInit(lastKF->getIMU(), cur_frame->getIMU());
+
 
     double r_w_i[2] = {0.0, 0.0};
     std::vector<double *> parameters_blocks1;
@@ -512,6 +522,24 @@ TEST_F(ImuTest, predictionPositionVelocity) {
     ASSERT_NEAR((results.local_jacobians.at(3) - results.jacobians.at(3)).sum(), 0, 1e-5);
     ASSERT_NEAR((results.local_jacobians.at(4) - results.jacobians.at(4)).sum(), 0, 1e-5);
     ASSERT_NEAR((results.local_jacobians.at(5) - results.jacobians.at(5)).sum(), 0, 1e-5);
+
+    // Solve
+    ceres::Problem problem;
+    problem.AddResidualBlock(cost_fct1, nullptr, parameters_blocks1);
+
+    // Solve the problem we just built
+    ceres::Solver::Options options;
+    options.trust_region_strategy_type         = ceres::LEVENBERG_MARQUARDT;
+    options.linear_solver_type                 = ceres::SPARSE_NORMAL_CHOLESKY;
+    options.minimizer_progress_to_stdout       = false;
+    options.use_explicit_schur_complement      = true;
+    options.sparse_linear_algebra_library_type = ceres::SUITE_SPARSE;
+    options.function_tolerance                 = 1.e-3;
+    options.num_threads                        = 4;
+
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+    ASSERT_NEAR(scale, 1 / std::exp(lambda[0]), 1e-2);
 }
 
 TEST_F(ImuTest, biasEstimation) {

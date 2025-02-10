@@ -1,5 +1,5 @@
 # SET(CMAKE_CONFIGURATION_TYPES Debug;Release;MinSizeRel;RelWithDebInfo)
-SET(CMAKE_BUILD_TYPE DEBUG) # DEBUG / RELEASE
+SET(CMAKE_BUILD_TYPE RELEASE) # DEBUG / RELEASE
 
 # set(CMAKE_BUILD_TYPE "DEBUG")
 project(isae_slam)
@@ -27,7 +27,6 @@ find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Ceres REQUIRED)
-find_package(PCL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
 include_directories(
@@ -70,12 +69,12 @@ install(
   DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake"
 )
 
-include(CMakePackageConfigHelpers)
-configure_package_config_file(
-    Config.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake"
-)
+# include(CMakePackageConfigHelpers)
+# configure_package_config_file(
+#     Config.cmake.in
+#     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+#     INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake"
+# )
 
 install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
@@ -87,7 +86,6 @@ install(
 # -------------------------------------------------------------------
 add_executable(isaeslam ./main.cpp)
 target_link_libraries(isaeslam ${PROJECT_NAME})
-
 
 # -------------------------------------------------------------------
 # Tests

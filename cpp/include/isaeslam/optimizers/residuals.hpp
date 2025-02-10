@@ -397,9 +397,102 @@ class IMUFactorInit : public ceres::SizedCostFunction<9, 2, 3, 3, 3, 3, 1> {
                 Eigen::Map<Eigen::Matrix<double, 9, 1>> J_scale(jacobians[5]);
                 J_scale                   = Eigen::Matrix<double, 9, 1>::Zero();
                 J_scale.block(6, 0, 3, 1) = T_fi_w.rotation() * R_w_i *
-                                            (T_fj_w.inverse().translation() - T_fi_w.inverse().translation()) *
-                                            std::exp(lambda);
+                                            (T_fj_w.inverse().translation() - T_fi_w.inverse().translation());
                 J_scale = inf_sqrt * J_scale;
+            }
+        }
+
+        return true;
+    }
+
+    std::shared_ptr<IMU> _imu_i;
+    std::shared_ptr<IMU> _imu_j;
+};
+
+class IMUFactorInitBis : public ceres::SizedCostFunction<9, 2, 3, 3, 1> {
+  public:
+    IMUFactorInitBis(const std::shared_ptr<IMU> imu_i, const std::shared_ptr<IMU> imu_j)
+        : _imu_i(imu_i), _imu_j(imu_j) {}
+
+    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
+
+        // Beware: the assumption here is that the IMU frame is the main frame
+        Eigen::Vector3d w_w_i  = Eigen::Vector3d(parameters[0][0], parameters[0][1], 0);
+        Eigen::Matrix3d R_w_i  = geometry::exp_so3(w_w_i);
+        Eigen::Vector3d d_ba   = Eigen::Map<const Eigen::Vector3d>(parameters[1]);
+        Eigen::Vector3d d_bg   = Eigen::Map<const Eigen::Vector3d>(parameters[2]);
+        double lambda          = *parameters[3];
+        Eigen::Vector3d v_i    = _imu_i->getVelocity();
+        Eigen::Vector3d v_j    = _imu_j->getVelocity();
+        Eigen::Affine3d T_fi_w = _imu_i->getFrame()->getWorld2FrameTransform();
+        Eigen::Affine3d T_fj_w = _imu_j->getFrame()->getWorld2FrameTransform();
+        double dtij            = (_imu_j->getFrame()->getTimestamp() - _imu_i->getFrame()->getTimestamp()) * 1e-9;
+
+        // Get the information matrix
+        Eigen::MatrixXd cov = _imu_j->getCov();
+        Eigen::Matrix<double, 9, 9> inf_sqrt =
+            Eigen::LLT<Eigen::Matrix<double, 9, 9>>(cov.inverse()).matrixL().transpose();
+
+        // Derive the residuals
+        Eigen::Matrix3d dR = (_imu_j->getDeltaR() * geometry::exp_so3(_imu_j->_J_dR_bg * d_bg)).transpose() *
+                             T_fi_w.rotation() * T_fj_w.rotation().transpose();
+        Eigen::Vector3d r_dr = geometry::log_so3(dR);
+        Eigen::Vector3d r_dv = T_fi_w.rotation() * R_w_i * (std::exp(lambda) * (v_j - v_i) - g * dtij) -
+                               (_imu_j->getDeltaV() + _imu_j->_J_dv_bg * d_bg + _imu_j->_J_dv_ba * d_ba);
+        Eigen::Vector3d r_dp =
+            T_fi_w.rotation() * R_w_i *
+                (std::exp(lambda) * (T_fj_w.inverse().translation() - T_fi_w.inverse().translation()) -
+                 std::exp(lambda) * v_i * dtij - 0.5 * g * dtij * dtij) -
+            (_imu_j->getDeltaP() + _imu_j->_J_dp_bg * d_bg + _imu_j->_J_dp_ba * d_ba);
+        Eigen::Map<Eigen::Matrix<double, 9, 1>> err(residuals);
+        err.block(0, 0, 3, 1) = r_dr;
+        err.block(3, 0, 3, 1) = r_dv;
+        err.block(6, 0, 3, 1) = r_dp;
+        err                   = inf_sqrt * err;
+
+        if (jacobians != NULL) {
+
+            // Jacobian wrt the gravity orientation
+            if (jacobians[0] != NULL) {
+                Eigen::Map<Eigen::Matrix<double, 9, 2, Eigen::RowMajor>> J_Rwi(jacobians[0]);
+                J_Rwi                   = Eigen::Matrix<double, 9, 2, Eigen::RowMajor>::Zero();
+                J_Rwi.block(3, 0, 3, 2) = -T_fi_w.rotation() * R_w_i * geometry::skewMatrix(std::exp(lambda)* (v_j - v_i) - g * dtij) *
+                                          geometry::so3_rightJacobian(w_w_i).block(0, 0, 3, 2);
+                J_Rwi.block(6, 0, 3, 2) = -T_fi_w.rotation() * R_w_i *
+                                          geometry::skewMatrix(std::exp(lambda) * (T_fj_w.inverse().translation() -
+                                                                                   T_fi_w.inverse().translation() -
+                                                               v_i * dtij) - 0.5 * g * dtij * dtij) *
+                                          geometry::so3_rightJacobian(w_w_i).block(0, 0, 3, 2);
+                J_Rwi = inf_sqrt * J_Rwi;
+            }
+
+            // Jacobian wrt the bias of the accelerometer
+            if (jacobians[1] != NULL) {
+                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> J_dba(jacobians[1]);
+                J_dba                   = Eigen::Matrix<double, 9, 3, Eigen::RowMajor>::Zero();
+                J_dba.block(3, 0, 3, 3) = -_imu_j->_J_dv_ba;
+                J_dba.block(6, 0, 3, 3) = -_imu_j->_J_dp_ba;
+                J_dba                   = inf_sqrt * J_dba;
+            }
+
+            // Jacobian wrt the bias of the gyroscope
+            if (jacobians[2] != NULL) {
+                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> J_dbg(jacobians[2]);
+                J_dbg                   = Eigen::Matrix<double, 9, 3, Eigen::RowMajor>::Zero();
+                J_dbg.block(0, 0, 3, 3) = -geometry::so3_rightJacobian(r_dr).inverse() * dR.transpose() *
+                                          geometry::so3_rightJacobian(_imu_j->_J_dR_bg * d_bg) * _imu_j->_J_dR_bg;
+                J_dbg.block(3, 0, 3, 3) = -_imu_j->_J_dv_bg;
+                J_dbg.block(6, 0, 3, 3) = -_imu_j->_J_dp_bg;
+                J_dbg                   = inf_sqrt * J_dbg;
+            }
+
+            // Jacobian wrt the scale
+            if (jacobians[3] != NULL) {
+                Eigen::Map<Eigen::Matrix<double, 9, 1>> J_scale(jacobians[3]);
+                J_scale                   = Eigen::Matrix<double, 9, 1>::Zero();
+                J_scale.block(3, 0, 3, 1) = T_fi_w.rotation() * R_w_i * (v_j - v_i);
+                J_scale.block(6, 0, 3, 1) =
+                    T_fi_w.rotation() * R_w_i * (T_fj_w.inverse().translation() - T_fi_w.inverse().translation() - v_i * dtij);
             }
         }
 
