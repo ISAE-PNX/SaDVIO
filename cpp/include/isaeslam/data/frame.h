@@ -87,13 +87,12 @@ class Frame : public std::enable_shared_from_this<Frame> {
     Eigen::Affine3d getPrior() const { return _T_prior; }
     Vector6d getInfPrior() const { return _inf_T_prior; }
 
-    // Handles relative pose factor
-    void setdTPrior(Eigen::Affine3d dT_prior, Eigen::MatrixXd inf_dT_prior) {
-        _dT_prior     = dT_prior;
-        _inf_dT_prior = inf_dT_prior;
+    // Handles relative pose covariance
+    // The convention is wrt the previous frame
+    void setdTCov(Eigen::MatrixXd dT_cov) {
+        _dT_cov = dT_cov;
     }
-    Eigen::Affine3d getdTPrior() const { return _dT_prior; }
-    Eigen::MatrixXd getInfdTPrior() const { return _inf_dT_prior; }
+    Eigen::MatrixXd getdTCov() const { return _dT_cov; }
 
   private:
     Eigen::Affine3d _T_f_w;
@@ -108,8 +107,7 @@ class Frame : public std::enable_shared_from_this<Frame> {
 
     Eigen::Affine3d _T_prior;
     Vector6d _inf_T_prior;
-    Eigen::Affine3d _dT_prior;
-    Eigen::MatrixXd _inf_dT_prior;
+    Eigen::MatrixXd _dT_cov;
 
     mutable std::mutex _frame_mtx;
 };

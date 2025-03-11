@@ -1,4 +1,4 @@
-#include "isaeslam/optimizers/AngularAdjustmentCERESAnalytic.h"
+
 #include "isaeslam/slamCore.h"
 #include <opencv2/core.hpp>
 
@@ -127,9 +127,18 @@ bool SLAMBiMono::frontEndStep() {
         // Update tracked landmarks
         updateLandmarks(_matches_in_time_lmk);
 
-        // Single Frame Bundle Adjustment
+        // Single Frame ESKF Update
         isae::timer::tic();
-        _slam_param->getOptimizerFront()->singleFrameOptimization(_frame);
+
+        Eigen::MatrixXd cov;
+        Eigen::Affine3d T_last_curr, T_w_f;
+        T_last_curr = getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform();
+        ESKFEstimator eskf;
+        eskf.estimateTransformBetween(getLastKF(), _frame, _matches_in_time_lmk["pointxd"], T_last_curr, cov);
+        T_w_f = getLastKF()->getFrame2WorldTransform() * T_last_curr;
+        _frame->setdTCov(cov);
+        _frame->setWorld2FrameTransform(T_w_f.inverse());
+
         _avg_frame_opt_t = (_avg_frame_opt_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
         _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getLandmarks()["pointxd"].size()) / _nframes;
 
@@ -251,7 +260,6 @@ bool SLAMBiMono::backEndStep() {
         isae::timer::tic();
         _slam_param->getOptimizerBack()->localMapBA(_local_map, _local_map->getFixedFrameNumber());
         _avg_wdw_opt_t = (_avg_wdw_opt_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
-        std::cout << "Map size = " << _local_map->getFrames().size() << std::endl;
         profiling();
 
         // Reset frame to optim

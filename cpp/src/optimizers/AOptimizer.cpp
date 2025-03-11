@@ -466,7 +466,7 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     // Parameter block of the gravity direction
     double r_wi_par[2] = {0.0, 0.0};
     problem.AddParameterBlock(r_wi_par, 2);
-    problem.SetParameterBlockConstant(r_wi_par);
+    // problem.SetParameterBlockConstant(r_wi_par);
 
     // Parameter blocks of the delta bias (assumed constant on this sliding window)
     PointXYZParametersBlock dba_par = PointXYZParametersBlock(Eigen::Vector3d(0, 0, 0));
