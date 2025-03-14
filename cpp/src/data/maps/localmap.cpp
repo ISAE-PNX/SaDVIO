@@ -9,6 +9,7 @@ LocalMap::LocalMap(size_t min_kf_number, size_t max_kf_number, size_t fixed_fram
 void LocalMap::addFrame(std::shared_ptr<isae::Frame> &frame) {
 
     // A KF has been voted, the frame is added to the local map
+    // The frames are ordered from the oldest to the newest
     _localmap_mtx.lock();
     _frames.push_back(frame);
     _localmap_mtx.unlock();
@@ -80,6 +81,45 @@ void LocalMap::removeEmptyLandmarks() {
             }
         }
     }
+}
+
+bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,
+                                   std::shared_ptr<isae::Frame> &frame2,
+                                   Eigen::Affine3d &T_f1_f2,
+                                   Eigen::MatrixXd &cov) {
+    // Compute the relative pose between two frames
+    T_f1_f2 = frame1->getFrame2WorldTransform().inverse() * frame2->getFrame2WorldTransform();
+
+    // Select all the frames included between the two frames
+    std::vector<std::shared_ptr<isae::Frame>> frames_to_add;
+    for (auto &frame : _frames) {
+        if (frame->getTimestamp() >= frame1->getTimestamp() && frame->getTimestamp() <= frame2->getTimestamp()) {
+            frames_to_add.push_back(frame);
+        }
+    }
+
+    // Propagate the covariance
+    cov = frames_to_add.at(1)->getdTCov();
+    Eigen::Affine3d T_f1_fi =
+        frame1->getFrame2WorldTransform().inverse() * frames_to_add.at(1)->getFrame2WorldTransform();
+
+    for (uint i = 2; i < frames_to_add.size(); i++) {
+
+        Eigen::Affine3d T_fim1_fi = frames_to_add.at(i - 1)->getFrame2WorldTransform().inverse() *
+                                    frames_to_add.at(i)->getFrame2WorldTransform();
+
+        Eigen::MatrixXd J_f1   = Eigen::MatrixXd::Identity(6, 6);
+        J_f1.block<3, 3>(0, 0) = T_fim1_fi.rotation().transpose();
+        J_f1.block<3, 3>(3, 0) = T_f1_fi.rotation();
+
+        Eigen::MatrixXd J_dt   = Eigen::MatrixXd::Identity(6, 6);
+        J_dt.block<3, 3>(3, 3) = T_f1_fi.rotation().transpose();
+
+        T_f1_fi = frame1->getFrame2WorldTransform().inverse() * frames_to_add.at(i)->getFrame2WorldTransform();
+        cov     = J_f1 * cov * J_f1.transpose() + J_dt * frames_to_add.at(i)->getdTCov() * J_dt.transpose();
+    }
+    
+    return true;
 }
 
 void LocalMap::pushLandmarks(std::shared_ptr<isae::Frame> &frame) {

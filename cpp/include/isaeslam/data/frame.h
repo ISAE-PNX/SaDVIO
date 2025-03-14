@@ -13,7 +13,9 @@ class IMU;
 
 class Frame : public std::enable_shared_from_this<Frame> {
   public:
-    Frame() { _T_f_w = Eigen::Affine3d::Identity(); }
+    Frame() { _T_f_w = Eigen::Affine3d::Identity(); 
+    _dT_cov = Eigen::MatrixXd::Identity(6, 6); 
+    }
 
     // Frame id for bookeeping
     static int _frame_count;
