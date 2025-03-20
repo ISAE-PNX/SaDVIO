@@ -127,8 +127,19 @@ void ADataProvider::loadCamConfig(YAML::Node cam_node) {
 
         cam_cfg->xi    = intrinsics[0];
         cam_cfg->alpha = intrinsics[1];
+    } else if (proj_model == "omni") {
+
+        cam_cfg->sensor_type = "omni_cam";
+        std::vector<double> intrinsics(5);
+        intrinsics  = cam_node["intrinsics"].as<std::vector<double>>();
+        cam_cfg->xi = intrinsics[0];
+        K(0, 0)     = intrinsics[1];
+        K(1, 1)     = intrinsics[2];
+        K(0, 2)     = intrinsics[3];
+        K(1, 2)     = intrinsics[4];
     }
 
+    // Load distortion model (only for pinhole and omni)
     if (cam_node["distortion_model"].as<std::string>() == "radial-tangential") {
         cam_cfg->undistort = true;
 
@@ -138,13 +149,16 @@ void ADataProvider::loadCamConfig(YAML::Node cam_node) {
         cv::eigen2cv(K, K_cv);
         cv::eigen2cv(D, D_cv);
 
-        new_K_cv = cv::getOptimalNewCameraMatrix(K_cv, D_cv, img_size_cv, 0., img_size_cv);
-        cv::initUndistortRectifyMap(K_cv, D_cv, cv::Mat(), new_K_cv, img_size_cv, CV_32FC1, undist_map_x, undist_map_y);
+        if (proj_model == "pinhole") {
+            new_K_cv = cv::getOptimalNewCameraMatrix(K_cv, D_cv, img_size_cv, 0., img_size_cv);
+            cv::initUndistortRectifyMap(
+                K_cv, D_cv, cv::Mat(), new_K_cv, img_size_cv, CV_32FC1, undist_map_x, undist_map_y);
+            cv::cv2eigen(new_K_cv, K);
+        }
 
         // load undist map
         cam_cfg->undist_map_x = undist_map_x;
         cam_cfg->undist_map_y = undist_map_y;
-        cv::cv2eigen(new_K_cv, K);
 
     } else
         cam_cfg->undistort = false;
@@ -179,13 +193,13 @@ std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(cons
 
             cv::Mat img;
 
-            if (_cam_configs.at(i)->undistort)
+            if (_cam_configs.at(i)->undistort) {
                 cv::remap(imgs.at(i),
                           img,
                           _cam_configs.at(i)->undist_map_x,
                           _cam_configs.at(i)->undist_map_y,
                           cv::INTER_LINEAR);
-            else
+            } else
                 img = imgs.at(i);
 
             cv::resize(img, img_res, cv::Size(), downsampling, downsampling);
@@ -203,6 +217,15 @@ std::vector<std::shared_ptr<ImageSensor>> ADataProvider::createImageSensors(cons
             cv::resize(imgs.at(i), img_res, cv::Size(), downsampling, downsampling);
 
             cam = std::make_shared<DoubleSphere>(img_res, K, _cam_configs.at(i)->alpha, _cam_configs.at(i)->xi);
+
+        } else if (_cam_configs.at(i)->proj_model == "omni") {
+
+            cv::resize(imgs.at(i), img_res, cv::Size(), downsampling, downsampling);
+
+            if (_cam_configs.at(i)->undistort)
+                cam = std::make_shared<Omni>(img_res, K, _cam_configs.at(i)->xi, _cam_configs.at(i)->d);
+            else
+                cam = std::make_shared<Omni>(img_res, K, _cam_configs.at(i)->xi);
         }
 
         // Add mask if available

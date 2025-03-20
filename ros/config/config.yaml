@@ -3,10 +3,10 @@
 #################################################################################
 
 ## dataset_id in {kitti, eth, gazebo_fisheye, gazebo_pinhole, oivio, isae}
-dataset_id : "eth"
+dataset_id : "gvins"
 
 ## slam mode in {mono, bimono, nofov, monovio, bimonovio}
-slam_mode : "bimonovio"
+slam_mode : "bimono"
 enable_visu : 1
 multithreading : 0
 
@@ -14,7 +14,7 @@ multithreading : 0
 ## 3: image normalization, 4: adaptive gamma correction)
 contrast_enhancer : 1
 clahe_clip : 2
-downsampling: 0.5
+downsampling: 1
 
 #################################################################################
 # Details about the SLAM Algorithm
@@ -32,9 +32,9 @@ tracker: "klt"
 ## LocalMap parameters
 min_kf_number: 1                # number of keyframes that are added by default when the map starts
 max_kf_number: 12               # size of the sliding window
-fixed_frame_number: 0         # number of keyframe that will remain static during windowed BA
-marginalization: 1              # marginalization of old variables or not
-sparsification: 1             # sparsification of the prior or not   
+fixed_frame_number: 1         # number of keyframe that will remain static during windowed BA
+marginalization: 0              # marginalization of old variables or not
+sparsification: 0             # sparsification of the prior or not   
 
 ## Mesh parameters
 mesh3d: 0                      # mesh3d computation or not 
