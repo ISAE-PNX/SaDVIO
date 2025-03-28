@@ -539,8 +539,7 @@ inline std::vector<Eigen::Vector3d> sampleTriangle(std::vector<Eigen::Vector3d> 
 void Mesh3D::generatePointCloud() {
 
     std::lock_guard<std::mutex> lock(_pc_mtx);
-    _pcl_cloud.points.clear();
-    _pcl_cloud.header.seq = _reference_frame->_id;
+    _point_cloud.clear();
 
     Eigen::Affine3d T_cam0_w = _T_w_cam0.inverse();
     int height               = _img0.rows;
@@ -597,19 +596,10 @@ void Mesh3D::generatePointCloud() {
 
                 // Save the point if valid
                 if (min_depth < 1000) {
-                    pcl::PointNormal pt;
-                    Eigen::Vector3d normal = closest_triangle->getPolygonNormal();
                     Eigen::Vector3d t_w_p  = _T_w_cam0 * (min_depth * v);
 
-                    pt.x        = t_w_p.x();
-                    pt.y        = t_w_p.y();
-                    pt.z        = t_w_p.z();
-                    pt.normal_x = normal.x();
-                    pt.normal_y = normal.y();
-                    pt.normal_z = normal.z();
-
                     mtx.lock();
-                    _pcl_cloud.points.push_back(pt);
+                    _point_cloud.push_back(t_w_p);
                     mtx.unlock();
                 }
             }
@@ -686,19 +676,10 @@ void Mesh3D::generatePointCloud() {
                     // Save the point if valid
                     Eigen::Affine3d T_w_cam1 = T_cam1_w.inverse();
                     if (min_depth < 1000) {
-                        pcl::PointNormal pt;
-                        Eigen::Vector3d normal = closest_triangle->getPolygonNormal();
                         Eigen::Vector3d t_w_p  = T_w_cam1 * (min_depth * v);
 
-                        pt.x        = t_w_p.x();
-                        pt.y        = t_w_p.y();
-                        pt.z        = t_w_p.z();
-                        pt.normal_x = normal.x();
-                        pt.normal_y = normal.y();
-                        pt.normal_z = normal.z();
-
                         mtx.lock();
-                        _pcl_cloud.points.push_back(pt);
+                        _point_cloud.push_back(t_w_p);
                         mtx.unlock();
                     }
                 }
@@ -715,16 +696,6 @@ void Mesh3D::generatePointCloud() {
         for (auto &th : threads) {
             th.join();
         }
-    }
-
-    bool write_clouds = false;
-    if (write_clouds && _pcl_cloud.points.size() > 0) {
-        _pcl_cloud.width  = _pcl_cloud.points.size();
-        _pcl_cloud.height = 1;
-        pcl::PointCloud<pcl::PointNormal> pc_frame;
-        std::string title = "cloud/" + std::to_string(_reference_frame->getTimestamp()) + ".pcd";
-        pcl::transformPointCloud(_pcl_cloud, pc_frame, T_cam0_w.matrix());
-        pcl::io::savePCDFileASCII(title, pc_frame);
     }
 }
 

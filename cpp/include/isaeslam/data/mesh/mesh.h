@@ -7,10 +7,8 @@
 #include "isaeslam/data/features/AFeature2D.h"
 #include "isaeslam/data/frame.h"
 #include "isaeslam/data/landmarks/ALandmark.h"
-#include "pcl/common/transforms.h"
 #include "utilities/geometry.h"
 #include "utilities/imgProcessing.h"
-#include <pcl/io/pcd_io.h>
 
 namespace isae {
 
@@ -31,9 +29,9 @@ class Mesh3D {
         std::lock_guard<std::mutex> lock(_mesh_mtx);
         return _polygons;
     }
-    pcl::PointCloud<pcl::PointNormal> getPointCloud() const {
+    std::vector<Eigen::Vector3d> getPointCloud() const {
         std::lock_guard<std::mutex> lock(_pc_mtx);
-        return _pcl_cloud;
+        return _point_cloud;
     }
     std::shared_ptr<Frame> getFrame() const {
         std::lock_guard<std::mutex> lock(_mesh_mtx);
@@ -66,7 +64,6 @@ class Mesh3D {
     std::unordered_map<std::shared_ptr<ALandmark>, std::shared_ptr<Vertex>> _map_lmk_vertex;
     std::vector<std::shared_ptr<Polygon>> _polygons;
     std::vector<Eigen::Vector3d> _point_cloud;
-    pcl::PointCloud<pcl::PointNormal> _pcl_cloud;
     std::unordered_map<std::shared_ptr<Polygon>, std::vector<Eigen::Vector2d>> _map_poly_tri2d;
 
     // Storage of frame related objects

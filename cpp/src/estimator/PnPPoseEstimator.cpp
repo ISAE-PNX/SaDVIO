@@ -66,6 +66,9 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
     double errth             = 1.0;
     double focal             = matches.at(0).first->getSensor()->getFocal();
 
+    if (p3d_vector.size() < 5)
+        return false;
+
     cv::solvePnPRansac(p3d_vector,
                        p2d_vector,
                        K,

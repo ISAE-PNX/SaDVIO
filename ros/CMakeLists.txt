@@ -1,5 +1,5 @@
 # SET(CMAKE_CONFIGURATION_TYPES Debug;Release;MinSizeRel;RelWithDebInfo)
-SET(CMAKE_BUILD_TYPE DEBUG) # DEBUG / RELEASE
+SET(CMAKE_BUILD_TYPE RELEASE) # DEBUG / RELEASE
 
 # set(CMAKE_BUILD_TYPE "DEBUG")
 project(isae_slam_ros)
@@ -40,7 +40,6 @@ find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Ceres REQUIRED)
-find_package(PCL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
 include_directories(

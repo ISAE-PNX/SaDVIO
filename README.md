@@ -14,9 +14,8 @@ Here are the dependencies:
 * [CERES](http://ceres-solver.org/installation.html) a non linear solver from google
 * [Eigen](https://eigen.tuxfamily.org/dox/GettingStarted.html) a linera algebra library
 * [yaml-cpp](https://github.com/jbeder/yaml-cpp) to parse config files 
-* [PCL](https://pointclouds.org/documentation/index.html) to deal with point clouds 
 
-You can either run this code with [ROS2](http://docs.ros.org/en/humble/Installation.html), the famous robotic middleware, or without ROS2. For now it has been tested with Galactic and Humble.
+You can either run this code with [ROS2](http://docs.ros.org/en/humble/Installation.html), the famous robotic middleware, or without ROS2. For now it has been tested with Galactic and Humble. A few changes are needed for Jazzy but only in the ros folder.
 
 ## ROS2 install 
 
@@ -65,7 +64,7 @@ cd SaDVIO/cpp/build/
 
 A few functionnalities are currently being tested, their performances are not guaranteed and were not presented in any paper:
 * The lines as features and landmarks
-* The *mono* and *monovio* modes
+* The *mono* and *monovio* modes work decently 
 
 Please consider citing one of the related work if you use our system in your research:
 
@@ -88,3 +87,11 @@ Please consider citing one of the related work if you use our system in your res
 }
 ```
 
+```
+@article{debeunne2024sadvio,
+  title={SaDVIO: Sparsify and Densify VIO for UGV Traversability Estimation},
+  author={Debeunne, C{\'e}sar and Torres, Alex and Vivet, Damien},
+  journal={IEEE Robotics and Automation Letters},
+  year={2024}
+}
+```

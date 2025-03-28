@@ -1,4 +1,4 @@
-#include "isaeslam/optimizers/AngularAdjustmentCERESAnalytic.h"
+
 #include "isaeslam/slamCore.h"
 #include <opencv2/core.hpp>
 
@@ -50,6 +50,7 @@ bool SLAMBiMono::init() {
     // Send frame to optimizer
     _frame_to_optim = _frame;
     _is_init        = true;
+    _successive_fails = 0;
     _nkeyframes++;
 
     return true;
@@ -105,6 +106,7 @@ bool SLAMBiMono::frontEndStep() {
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
     if (good_it) {
+        _successive_fails = 0;
 
         // Epipolar Filtering for matches in time
         isae::timer::tic();
@@ -127,9 +129,18 @@ bool SLAMBiMono::frontEndStep() {
         // Update tracked landmarks
         updateLandmarks(_matches_in_time_lmk);
 
-        // Single Frame Bundle Adjustment
+        // Single Frame ESKF Update
         isae::timer::tic();
-        _slam_param->getOptimizerFront()->singleFrameOptimization(_frame);
+
+        Eigen::MatrixXd cov;
+        Eigen::Affine3d T_last_curr, T_w_f;
+        T_last_curr = getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform();
+        ESKFEstimator eskf;
+        eskf.estimateTransformBetween(getLastKF(), _frame, _matches_in_time_lmk["pointxd"], T_last_curr, cov);
+        T_w_f = getLastKF()->getFrame2WorldTransform() * T_last_curr;
+        _frame->setdTCov(cov);
+        _frame->setWorld2FrameTransform(T_w_f.inverse());
+
         _avg_frame_opt_t = (_avg_frame_opt_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
         _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getLandmarks()["pointxd"].size()) / _nframes;
 
@@ -143,6 +154,7 @@ bool SLAMBiMono::frontEndStep() {
         // - All matches in time are removed
         // Can be improved: redetect new points, retrack old features....
 
+        _successive_fails++;
         outlierRemoval();
         _frame->setKeyFrame();
     }
@@ -209,6 +221,16 @@ bool SLAMBiMono::frontEndStep() {
         _frame->cleanLandmarks();
     }
 
+    // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
+    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
+        (_successive_fails > 5)) {
+
+        _is_init = false;
+        _local_map->reset();
+
+        return true;
+    }
+
     // Send the frame to the viewer
     _frame_to_display = _frame;
 
@@ -231,14 +253,13 @@ bool SLAMBiMono::backEndStep() {
         }
 
         // Marginalization (+ sparsification) of the last frame
-        if (_local_map->getMarginalizationFlag()) {
-            isae::timer::tic();
+        isae::timer::tic();
+        while (_local_map->getMarginalizationFlag()) {
             if (_slam_param->_config.marginalization == 1)
                 _slam_param->getOptimizerBack()->marginalize(_local_map->getFrames().at(0),
                                                              _local_map->getFrames().at(1),
                                                              _slam_param->_config.sparsification == 1);
 
-            _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
             // Uncomment below to enable global map
             // _global_map->addFrame(_local_map->getFrames().at(0));
 
@@ -246,6 +267,7 @@ bool SLAMBiMono::backEndStep() {
             _local_map->discardLastFrame();
             _map_mutex.unlock();
         }
+        _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + (double)_local_map->getFrames().size()) / _nkeyframes;
 
         // Optimize Local Map
         isae::timer::tic();

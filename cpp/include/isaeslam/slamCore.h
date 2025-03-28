@@ -15,6 +15,7 @@
 #include "isaeslam/data/sensors/ASensor.h"
 #include "isaeslam/data/sensors/DoubleSphere.h"
 #include "isaeslam/estimator/EpipolarPoseEstimator.h"
+#include "isaeslam/estimator/ESKFEstimator.h"
 #include "isaeslam/featuredetectors/custom_detectors/Edgelet2DFeatureDetector.h"
 #include "isaeslam/featuredetectors/custom_detectors/EllipsePatternFeatureDetector.h"
 #include "isaeslam/featuredetectors/opencv_detectors/cvORBFeatureDetector.h"
@@ -26,6 +27,7 @@
 #include "isaeslam/featurematchers/Point2DFeatureTracker.h"
 #include "isaeslam/landmarkinitializer/Edgelet3DlandmarkInitializer.h"
 #include "isaeslam/landmarkinitializer/Point3DlandmarkInitializer.h"
+#include "isaeslam/optimizers/AngularAdjustmentCERESAnalytic.h"
 #include "isaeslam/slamParameters.h"
 #include "isaeslam/typedefs.h"
 #include "utilities/timer.h"
@@ -51,8 +53,9 @@ class SLAMCore {
     void runFrontEnd();
     void runFullOdom();
 
-    // Flag for init
+    // Flag for init and number of successive failures for diagnostic
     bool _is_init = false;
+    int _successive_fails = 0;
 
     // Public variables for display 
     std::shared_ptr<isae::SLAMParameters> _slam_param;

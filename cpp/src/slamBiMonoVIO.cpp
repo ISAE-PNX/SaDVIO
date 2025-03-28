@@ -1,3 +1,4 @@
+#include "isaeslam/estimator/ESKFEstimator.h"
 #include "isaeslam/slamCore.h"
 
 namespace isae {
@@ -12,9 +13,6 @@ bool SLAMBiMonoVIO::init() {
 
     // Prior on the first frame, it is set as the origin or the last kf's pose
     Eigen::Affine3d T_i_f = Eigen::Affine3d::Identity();
-    if (getLastKF()) {
-        T_i_f.translation() =  getLastKF()->getWorld2FrameTransform().translation();
-    } 
 
     // Align the global frame with the gravity direction (if IMU available)
     Eigen::Vector3d acc_mean(0.0, 0.0, 0.0);
@@ -115,7 +113,8 @@ bool SLAMBiMonoVIO::init() {
 
     // Set pb init
     _nkeyframes++;
-    _is_init = true;
+    _is_init          = true;
+    _successive_fails = 0;
 
     return true;
 }
@@ -322,9 +321,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
     // Get next frame
     _frame = _slam_param->getDataProvider()->next();
 
-    // Timing vector frate
-    std::vector<float> timing_fe;
-
     // Process IMU data
     if (_frame->getIMU()) {
         _frame->getIMU()->setLastIMU(_last_IMU);
@@ -375,7 +371,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
 
     _avg_matches_time = (_avg_matches_time * (_nframes - 1) + nmatches_in_time) / _nframes;
     float matching_dt = isae::timer::silentToc();
-    timing_fe.push_back(matching_dt);
     _avg_match_time_t = (_avg_match_time_t * (_nframes - 1) + matching_dt) / _nframes;
 
     // Get P3d from n-1 matched features and estimate 3D pose from 2D (n)/3D (n-1) matchings
@@ -384,9 +379,9 @@ bool SLAMBiMonoVIO::frontEndStep() {
     bool good_it   = predict(_frame);
     float pnp_dt   = isae::timer::silentToc();
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + pnp_dt) / _nframes;
-    timing_fe.push_back(pnp_dt);
 
     if (good_it) {
+        _successive_fails = 0;
 
         // Epipolar Filtering for matches in time
         isae::timer::tic();
@@ -399,7 +394,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
         float epi_dt  = isae::timer::silentToc();
         _removed_feat = (_removed_feat * (_nframes - 1) + removed_matching_nb) / _nframes;
         _avg_filter_t = (_avg_filter_t * (_nframes - 1) + epi_dt) / _nframes;
-        timing_fe.push_back(epi_dt);
 
         // Remove Outliers in case of klt
         if (_slam_param->_config.tracker == "klt") {
@@ -407,26 +401,30 @@ bool SLAMBiMonoVIO::frontEndStep() {
             outlierRemoval();
             double dt_filter = isae::timer::silentToc();
             _avg_clean_t     = (_avg_clean_t * (_nframes - 1) + dt_filter) / _nframes;
-            timing_fe.push_back(dt_filter);
         }
 
         // Update tracked landmarks
         updateLandmarks(_matches_in_time_lmk);
 
-        // Single Frame Bundle Adjustment
+        // Single Frame ESKF Update
         isae::timer::tic();
-        _slam_param->getOptimizerFront()->singleFrameVIOptimization(_frame);
+
+        Eigen::MatrixXd cov;
+        Eigen::Affine3d T_last_curr, T_w_f;
+        T_last_curr = getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform();
+        ESKFEstimator eskf;
+        eskf.estimateTransformBetween(getLastKF(), _frame, _matches_in_time_lmk["pointxd"], T_last_curr, cov);
+        T_w_f = getLastKF()->getFrame2WorldTransform() * T_last_curr;
+        _frame->setdTCov(cov);
+        _frame->setWorld2FrameTransform(T_w_f.inverse());
+
         float optim_dt   = isae::timer::silentToc();
         _avg_frame_opt_t = (_avg_frame_opt_t * (_nframes - 1) + optim_dt) / _nframes;
         _lmk_inmap       = (_lmk_inmap * (_nframes - 1) + _frame->getLandmarks()["pointxd"].size()) / _nframes;
-        timing_fe.push_back(optim_dt);
 
         // Compute velocity and motion model
         _6d_velocity =
             (geometry::se3_RTtoVec6d(getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform())) / dt;
-
-        // Update timing list
-        _timings_frate.push_back(timing_fe);
 
     } else {
 
@@ -435,6 +433,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
         // - A KF is voted
         // - All matches in time are removed
         // Can be improved: redetect new points, retrack old features....
+        _successive_fails++;
 
         T_f_w = dT.inverse() * getLastKF()->getWorld2FrameTransform();
         _frame->setWorld2FrameTransform(T_f_w);
@@ -486,7 +485,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
             new_features    = detectFeatures(_frame->getSensors().at(0));
             float detect_dt = isae::timer::silentToc();
             _avg_detect_t   = (_avg_detect_t * (_nkeyframes - 1) + detect_dt) / _nkeyframes;
-            timing_fe.push_back(detect_dt);
         }
 
         // Recover Map Landmark
@@ -498,7 +496,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
         float recover_dt = isae::timer::silentToc();
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + recover_dt) / _nkeyframes;
         _avg_resur_lmk   = (_avg_lmk_resur_t * (_nkeyframes - 1) + resu) / _nkeyframes;
-        timing_fe.push_back(recover_dt);
 
         // Track features in frame
         isae::timer::tic();
@@ -520,7 +517,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
         float track_dt     = isae::timer::silentToc();
         _avg_matches_frame = (_avg_matches_frame * (_nkeyframes - 1) + nmatches_in_frame) / _nkeyframes;
         _avg_match_frame_t = (_avg_match_frame_t * (_nkeyframes - 1) + track_dt) / _nkeyframes;
-        timing_fe.push_back(track_dt);
 
         // Wait the end of optim
         while (_frame_to_optim != nullptr) {
@@ -536,8 +532,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
         _slam_param->getOptimizerFront()->landmarkOptimization(_frame);
         float lmk_dt    = isae::timer::silentToc();
         _avg_lmk_init_t = (_avg_lmk_init_t * (_nkeyframes - 1) + lmk_dt) / _nkeyframes;
-        timing_fe.push_back(lmk_dt);
-        _timings_kfrate_fe.push_back(timing_fe);
 
         // Send frame to optim to optimizer
         _frame_to_optim = _frame;
@@ -548,14 +542,14 @@ bool SLAMBiMonoVIO::frontEndStep() {
         _frame->cleanLandmarks();
     }
 
-    // Init again if there is a big jump
-    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10) {
+    // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
+    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
+        (_successive_fails > 5)) {
 
-        bool init_success = this->init();
-        while (!init_success)
-            init_success = this->init();
+        _is_init = false;
+        _local_map->reset();
+
         return true;
-
     }
 
     // Send the frame to the viewer
@@ -567,8 +561,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
 bool SLAMBiMonoVIO::backEndStep() {
 
     if (_frame_to_optim) {
-
-        std::vector<float> timing_be;
 
         // Add frame to local map
         _local_map->addFrame(_frame_to_optim);
@@ -590,7 +582,6 @@ bool SLAMBiMonoVIO::backEndStep() {
 
         float marg_dt = isae::timer::silentToc();
         _avg_marg_t   = (_avg_marg_t * (_nkeyframes - 1) + marg_dt) / _nkeyframes;
-        timing_be.push_back(marg_dt);
 
         // Optimize Local Map
         isae::timer::tic();
@@ -601,8 +592,6 @@ bool SLAMBiMonoVIO::backEndStep() {
 
         float optim_dt = isae::timer::silentToc();
         _avg_wdw_opt_t = (_avg_wdw_opt_t * (_nkeyframes - 1) + optim_dt) / _nkeyframes;
-        timing_be.push_back(optim_dt);
-        _timings_kfrate_be.push_back(timing_be);
 
         // profiling
         profiling();
@@ -646,8 +635,8 @@ void SLAMBiMonoVIO::IMUprofiling() {
         Eigen::Vector3d bg      = _frame->getIMU()->getBg();
         fw_res << _frame->getTimestamp() << "," << R(0, 0) << "," << R(0, 1) << "," << R(0, 2) << "," << twc.x() << ","
                << R(1, 0) << "," << R(1, 1) << "," << R(1, 2) << "," << twc.y() << "," << R(2, 0) << "," << R(2, 1)
-               << "," << R(2, 2) << "," << twc.z() << "," << vw.x() << "," << vw.y() << "," << vw.z() << "," 
-               <<  ba(0) << "," << ba(1) << "," << ba(2) << "," << bg(0) << "," << bg(1) << "," << bg(2) << "\n";
+               << "," << R(2, 2) << "," << twc.z() << "," << vw.x() << "," << vw.y() << "," << vw.z() << "," << ba(0)
+               << "," << ba(1) << "," << ba(2) << "," << bg(0) << "," << bg(1) << "," << bg(2) << "\n";
         fw_res.close();
     }
 }
