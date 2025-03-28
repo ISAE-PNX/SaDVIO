@@ -472,9 +472,9 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     PointXYZParametersBlock dba_par = PointXYZParametersBlock(Eigen::Vector3d(0, 0, 0));
     PointXYZParametersBlock dbg_par = PointXYZParametersBlock(Eigen::Vector3d(0, 0, 0));
     problem.AddParameterBlock(dba_par.values(), 3);
-    // problem.SetParameterBlockConstant(dba_par.values());
+    problem.SetParameterBlockConstant(dba_par.values());
     problem.AddParameterBlock(dbg_par.values(), 3);
-    // problem.SetParameterBlockConstant(dbg_par.values());
+    problem.SetParameterBlockConstant(dbg_par.values());
 
     // Parameter block of the scale, that is set to 0 as it goes in an exponential
     double lambda[1] = {0.0};

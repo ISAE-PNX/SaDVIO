@@ -41,9 +41,6 @@ bool SLAMMonoVIO::init() {
     Eigen::Matrix3d K = geometry::skewMatrix(k.normalized());
     T_i_f.affine().block(0, 0, 3, 3) =
         (Eigen::Matrix3d::Identity() + k.norm() * K + (1 - acc_mean_norm.dot(g_norm)) * K * K);
-    //     T_i_f.affine().block(0, 0, 3, 3) << 0.38001193 , 0.16469125,  0.91020202,
-    //   0.03067918, -0.9857245,   0.16554758,
-    //   0.92447267, -0.0349858,  -0.37963966;
 
     // Set Keyframe and initialize preintegration
     _frame->setWorld2FrameTransform(T_i_f.inverse());
@@ -207,6 +204,7 @@ bool SLAMMonoVIO::init() {
     _nkeyframes++;
     _is_init        = true;
     _frame_to_optim = _frame;
+    _successive_fails = 0;
 
     return true;
 }
@@ -458,6 +456,7 @@ bool SLAMMonoVIO::frontEndStep() {
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
     if (good_it) {
+        _successive_fails = 0;
 
         // Epipolar Filtering for matches in time
         isae::timer::tic();
@@ -507,6 +506,7 @@ bool SLAMMonoVIO::frontEndStep() {
         // - All matches in time are removed
         // Can be improved: redetect new points, retrack old features....
 
+        _successive_fails++;
         T_f_w = dT.inverse() * getLastKF()->getWorld2FrameTransform();
         _frame->setWorld2FrameTransform(T_f_w);
         outlierRemoval();
@@ -583,6 +583,16 @@ bool SLAMMonoVIO::frontEndStep() {
     } else {
         // If no KF is voted, the frame is discarded and the landmarks are cleaned
         _frame->cleanLandmarks();
+    }
+
+    // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
+    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
+        (_successive_fails > 5)) {
+
+        _is_init = false;
+        _local_map->reset();
+
+        return true;
     }
 
     // Send the frame to the viewer

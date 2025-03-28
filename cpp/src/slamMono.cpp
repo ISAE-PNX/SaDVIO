@@ -160,6 +160,7 @@ bool SLAMMono::frontEndStep() {
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
     if (good_it) {
+        _successive_fails = 0;
 
         // Epipolar Filtering for matches in time
         isae::timer::tic();
@@ -202,12 +203,14 @@ bool SLAMMono::frontEndStep() {
             (geometry::se3_RTtoVec6d(getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform())) / dt;
     } else {
 
-        // If the prediction is wrong, we reinitialize the odometry from the last KF
-        // TO DO improve this with a relocalization step
-        bool init_success = this->init();
-        while (!init_success)
-            init_success = this->init();
-        return true;
+        // If the prediction is wrong, we reinitialize the odometry from the last KF:
+        // - A KF is voted
+        // - All matches in time are removed
+        // Can be improved: redetect new points, retrack old features....
+
+        _successive_fails++;
+        outlierRemoval();
+        _frame->setKeyFrame();
     }
 
     if (shouldInsertKeyframe(_frame)) {
@@ -251,6 +254,15 @@ bool SLAMMono::frontEndStep() {
 
         // If no KF is voted, the frame is discarded and the landmarks are cleaned
         _frame->cleanLandmarks();
+    }
+
+    // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
+    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
+        (_successive_fails > 5)) {
+
+        _is_init = false;
+
+        return true;
     }
 
     // Send the frame to the viewer

@@ -50,6 +50,7 @@ bool SLAMBiMono::init() {
     // Send frame to optimizer
     _frame_to_optim = _frame;
     _is_init        = true;
+    _successive_fails = 0;
     _nkeyframes++;
 
     return true;
@@ -105,6 +106,7 @@ bool SLAMBiMono::frontEndStep() {
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
     if (good_it) {
+        _successive_fails = 0;
 
         // Epipolar Filtering for matches in time
         isae::timer::tic();
@@ -152,6 +154,7 @@ bool SLAMBiMono::frontEndStep() {
         // - All matches in time are removed
         // Can be improved: redetect new points, retrack old features....
 
+        _successive_fails++;
         outlierRemoval();
         _frame->setKeyFrame();
     }
@@ -216,6 +219,16 @@ bool SLAMBiMono::frontEndStep() {
     } else {
         // If no KF is voted, the frame is discarded and the landmarks are cleaned
         _frame->cleanLandmarks();
+    }
+
+    // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
+    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
+        (_successive_fails > 5)) {
+
+        _is_init = false;
+        _local_map->reset();
+
+        return true;
     }
 
     // Send the frame to the viewer

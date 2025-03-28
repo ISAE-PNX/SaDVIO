@@ -83,6 +83,13 @@ void LocalMap::removeEmptyLandmarks() {
     }
 }
 
+void LocalMap::reset() {
+    _localmap_mtx.lock();
+    _frames.clear();
+    _landmarks.clear();
+    _localmap_mtx.unlock();
+}
+
 bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,
                                    std::shared_ptr<isae::Frame> &frame2,
                                    Eigen::Affine3d &T_f1_f2,
@@ -96,6 +103,11 @@ bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,
         if (frame->getTimestamp() >= frame1->getTimestamp() && frame->getTimestamp() <= frame2->getTimestamp()) {
             frames_to_add.push_back(frame);
         }
+    }
+
+    // If we haven't found at least 2 KF, return false 
+    if (frames_to_add.size() < 2) {
+        return false;
     }
 
     // Propagate the covariance

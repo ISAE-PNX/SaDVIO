@@ -19,6 +19,7 @@ class LocalMap : public AMap {
                              Eigen::MatrixXd &cov);
     bool getMarginalizationFlag() { return _margin_flag; }
     void discardLastFrame();
+    void reset();
 
   protected:
     void pushLandmarks(std::shared_ptr<Frame> &frame) override;

@@ -13,9 +13,6 @@ bool SLAMBiMonoVIO::init() {
 
     // Prior on the first frame, it is set as the origin or the last kf's pose
     Eigen::Affine3d T_i_f = Eigen::Affine3d::Identity();
-    if (getLastKF()) {
-        T_i_f.translation() = getLastKF()->getWorld2FrameTransform().translation();
-    }
 
     // Align the global frame with the gravity direction (if IMU available)
     Eigen::Vector3d acc_mean(0.0, 0.0, 0.0);
@@ -116,7 +113,8 @@ bool SLAMBiMonoVIO::init() {
 
     // Set pb init
     _nkeyframes++;
-    _is_init = true;
+    _is_init          = true;
+    _successive_fails = 0;
 
     return true;
 }
@@ -383,6 +381,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + pnp_dt) / _nframes;
 
     if (good_it) {
+        _successive_fails = 0;
 
         // Epipolar Filtering for matches in time
         isae::timer::tic();
@@ -434,6 +433,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
         // - A KF is voted
         // - All matches in time are removed
         // Can be improved: redetect new points, retrack old features....
+        _successive_fails++;
 
         T_f_w = dT.inverse() * getLastKF()->getWorld2FrameTransform();
         _frame->setWorld2FrameTransform(T_f_w);
@@ -542,12 +542,13 @@ bool SLAMBiMonoVIO::frontEndStep() {
         _frame->cleanLandmarks();
     }
 
-    // Init again if there is a big jump
-    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10) {
+    // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
+    if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
+        (_successive_fails > 5)) {
 
-        bool init_success = this->init();
-        while (!init_success)
-            init_success = this->init();
+        _is_init = false;
+        _local_map->reset();
+
         return true;
     }
 

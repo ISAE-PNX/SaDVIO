@@ -455,6 +455,8 @@ bool SLAMCore::predict(std::shared_ptr<Frame> &f) {
             std::cout << "Constant velocity model failed FORCE IT " << std::endl;
             std::cout << "previous = " << std::endl << T_const.matrix() << std::endl;
             T_last_curr = T_const;
+            f->setWorld2FrameTransform(T_last_curr.inverse() * getLastKF()->getWorld2FrameTransform());
+            return false;
         }
 
         f->setWorld2FrameTransform(T_last_curr.inverse() * getLastKF()->getWorld2FrameTransform());

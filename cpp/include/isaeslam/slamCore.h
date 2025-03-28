@@ -53,8 +53,9 @@ class SLAMCore {
     void runFrontEnd();
     void runFullOdom();
 
-    // Flag for init
+    // Flag for init and number of successive failures for diagnostic
     bool _is_init = false;
+    int _successive_fails = 0;
 
     // Public variables for display 
     std::shared_ptr<isae::SLAMParameters> _slam_param;
