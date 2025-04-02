@@ -145,8 +145,8 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
 void Marginalization::computeInformationAndGradient(std::vector<std::shared_ptr<MarginalizationBlockInfo>> blocks,
                                                     Eigen::MatrixXd &A,
                                                     Eigen::VectorXd &b) {
-    std::mutex mtx;
-    auto updateInfoMat = [&mtx, &A, &b](std::vector<std::shared_ptr<MarginalizationBlockInfo>> block_vector) {
+
+    auto updateInfoMat = [&A, &b](std::vector<std::shared_ptr<MarginalizationBlockInfo>> block_vector) {
         for (auto block : block_vector) {
             block->Evaluate();
 
@@ -169,7 +169,6 @@ void Marginalization::computeInformationAndGradient(std::vector<std::shared_ptr<
                         continue;
 
                     {
-                        mtx.lock();
                         if (i == j) {
                             A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
                         } else {
@@ -177,13 +176,10 @@ void Marginalization::computeInformationAndGradient(std::vector<std::shared_ptr<
                             A.block(idx_j, idx_i, size_j, size_i) =
                                 A.block(idx_i, idx_j, size_i, size_j).transpose().eval();
                         }
-                        mtx.unlock();
                     }
                 }
                 {
-                    mtx.lock();
                     b.segment(idx_i, size_i) += jacobian_i.transpose() * block->_residuals;
-                    mtx.unlock();
                 }
             }
         }
@@ -239,13 +235,8 @@ bool Marginalization::computeSchurComplement() {
             .asDiagonal() *
         saes.eigenvectors().transpose();
 
-    Eigen::VectorXd bmm = b.segment(0, _m);
-    Eigen::MatrixXd Arm = A.block(_m, 0, _n, _m);
-    Eigen::MatrixXd Arr = A.block(_m, _m, _n, _n);
-    Eigen::VectorXd brr = b.segment(_m, _n);
-
-    _Ak = Arr - Arm * Amm_inv * Arm.transpose();
-    _bk = brr - Arm * Amm_inv * bmm;
+    _Ak = A.block(_m, _m, _n, _n) - A.block(_m, 0, _n, _m) * Amm_inv * A.block(_m, 0, _n, _m).transpose();
+    _bk = b.segment(_m, _n) - A.block(_m, 0, _n, _m) * Amm_inv * b.segment(0, _m);
 
     // Update the map index to apply the reduction
     for (auto lmk_idx : _map_lmk_idx) {
@@ -310,9 +301,7 @@ double Marginalization::computeOffDiag(std::shared_ptr<ALandmark> lmk_i, std::sh
     int size_j;
     lmk_j->getLandmarkLabel() == "pointxd" ? size_j = 3 : size_j = 6;
 
-    Eigen::MatrixXd Lambda_ij = _Ak.block(_map_lmk_idx.at(lmk_i), _map_lmk_idx.at(lmk_j), size_i, size_j);
-
-    return std::abs(Lambda_ij.trace());
+    return std::abs(_Ak.block(_map_lmk_idx.at(lmk_i), _map_lmk_idx.at(lmk_j), size_i, size_j).trace());
 }
 
 void Marginalization::rankReveallingDecomposition(Eigen::MatrixXd A, Eigen::MatrixXd &U, Eigen::VectorXd &d) {
