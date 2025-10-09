@@ -25,8 +25,9 @@ class AngularAdjustmentCERESAnalytic : public AOptimizer {
                                            Eigen::Affine3d &T_cam0_cam0p,
                                            double info_scale) override;
 
-    double localMapVIOptimizationTd(std::shared_ptr<isae::LocalMap> &local_map,
-                                    const size_t fixed_frame_number = 0) override;
+    bool localMapVIOptimizationTd(std::shared_ptr<isae::LocalMap> &local_map,
+                                  double &td,
+                                  const size_t fixed_frame_number = 0) override;
 
   protected:
     uint addResidualsLocalMap(ceres::Problem &problem,
@@ -138,7 +139,7 @@ class AngularErrCeres_pointxd_dx : public ceres::SizedCostFunction<2, 6, 3> {
  * @brief Angular error cost function for a point landmark in the sensor frame, with time delta.
  * Parameters are delta update of the frame pose, the landmark position and the time delta.
  *
- * The cost function uses 2D feature velocity to estimate the time delay, as proposed in "Online temporal calibration 
+ * The cost function uses 2D feature velocity to estimate the time delay, as proposed in "Online temporal calibration
  * for monocular visual-inertial systems" by Qin et al Source: https://arxiv.org/abs/1808.00692
  */
 class AngularErrCeres_pointxd_td : public ceres::SizedCostFunction<2, 6, 3, 1> {

@@ -339,7 +339,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
     double dt          = (_frame->getTimestamp() - getLastKF()->getTimestamp()) * 1e-9;
     Eigen::Affine3d dT = getLastKF()->getWorld2FrameTransform() * _last_IMU->_T_w_f_imu;
     Eigen::Affine3d T_f_w =
-        geometry::se3_Vec6dtoRT(_6d_velocity * dt).inverse() * getLastKF()->getWorld2FrameTransform();
+        dT.inverse() * getLastKF()->getWorld2FrameTransform();
     _frame->setWorld2FrameTransform(T_f_w);
 
     // Detect all features (only if we use the matcher)
@@ -587,8 +587,8 @@ bool SLAMBiMonoVIO::backEndStep() {
         // Optimize Local Map
         isae::timer::tic();
         if (_slam_param->_config.estimate_td) {
-            double td = _slam_param->getOptimizerBack()->localMapVIOptimizationTd(_local_map,
-                                                                                  _local_map->getFixedFrameNumber());
+            double td = 0;
+            _slam_param->getOptimizerBack()->localMapVIOptimizationTd(_local_map, td, _local_map->getFixedFrameNumber());
             _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam -= td;
             std::cout << "Global time offset : " << _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam
                       << std::endl;

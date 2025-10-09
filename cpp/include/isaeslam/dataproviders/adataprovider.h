@@ -102,7 +102,7 @@ class EUROCGrabber {
     double _time_tolerance = 0.0025; //!< Time tolerance in seconds to consider measurements as synchronized
     std::string _folder_path;        //!< Path to the folder containing the dataset
     std::queue<std::string> _cam0_filename_queue, _cam1_filename_queue; //!< Queues for camera filenames
-    std::queue<double> _cam0_timestamp_queue, _cam1_timestamp_queue,
+    std::queue<long long> _cam0_timestamp_queue, _cam1_timestamp_queue,
         _imu_timestamp_queue;                    //!< Queues for camera and IMU timestamps
     std::queue<std::shared_ptr<IMU>> _imu_queue; //!< Queue for IMU sensors
 

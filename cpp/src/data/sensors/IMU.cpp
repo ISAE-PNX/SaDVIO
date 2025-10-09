@@ -92,8 +92,8 @@ bool IMU::processIMU() {
     _J_dR_bg = dR.transpose() * _last_IMU->_J_dR_bg - Jrk * dt;
     _J_dv_ba = _last_IMU->_J_dv_ba - _last_IMU->getDeltaR() * dt;
     _J_dv_bg = _last_IMU->_J_dv_bg - dR_dA * _last_IMU->_J_dR_bg * dt;
-    _J_dp_ba = _last_IMU->_J_dp_ba + _last_IMU->_J_dv_ba * dt - dt22 * _last_IMU->getDeltaR();
-    _J_dp_bg = _last_IMU->_J_dp_bg + _last_IMU->_J_dv_bg * dt - dt22 * dR_dA * _last_IMU->_J_dR_bg;
+    _J_dp_ba = _last_IMU->_J_dp_ba +  _last_IMU->_J_dv_ba * dt - dt22 *  _last_IMU->getDeltaR();
+    _J_dp_bg = _last_IMU->_J_dp_bg +  _last_IMU->_J_dv_bg * dt - dt22 * dR_dA *  _last_IMU->_J_dR_bg;
 
     return true;
 }

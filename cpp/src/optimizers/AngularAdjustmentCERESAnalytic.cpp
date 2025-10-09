@@ -3,8 +3,9 @@
 
 namespace isae {
 
-double AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<isae::LocalMap> &local_map,
-                                                                const size_t fixed_frame_number) {
+bool AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<isae::LocalMap> &local_map,
+                                                              double &td,
+                                                              const size_t fixed_frame_number) {
     // Set maps for bookeeping;
     _map_lmk_ptpar.clear();
     _map_frame_posepar.clear();
@@ -15,14 +16,14 @@ double AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<
     // Build the Bundle Adjustement Problem
     ceres::Problem problem;
     ceres::LossFunction *loss_function = nullptr;
-    auto ordering = new ceres::ParameterBlockOrdering;
+    auto ordering                      = new ceres::ParameterBlockOrdering;
 
     // Get all moving frames
     std::vector<std::shared_ptr<isae::Frame>> frame_vector;
     local_map->getLastNFramesIn(local_map->getMapSize(), frame_vector);
-    double td[1] = {0.0};
-    problem.AddParameterBlock(td, 1);
-    ordering->AddElementToGroup(td, 0);
+    double t_delay[1] = {td};
+    problem.AddParameterBlock(t_delay, 1);
+    ordering->AddElementToGroup(t_delay, 1);
 
     // Add residuals
     for (size_t i = 0; i < frame_vector.size(); i++) {
@@ -90,7 +91,7 @@ double AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<
                                                  loss_function,
                                                  _map_frame_posepar.at(frame).values(),
                                                  _map_lmk_ptpar.at(landmark).values(),
-                                                 td);
+                                                 t_delay);
                     } else {
                         ceres::CostFunction *cost_fct =
                             new AngularErrCeres_pointxd_dx(feature->getBearingVectors().at(0),
@@ -110,6 +111,11 @@ double AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<
     }
     addIMUResiduals(problem, loss_function, ordering, frame_vector, fixed_frame_number);
     addMarginalizationResiduals(problem, loss_function, ordering);
+
+    // Add a prior to prevent scale from diverging
+    // double info_td = 1e-1;
+    // ceres::CostFunction *cost_fct1 = new Prior1D(info_td, 0.0);
+    // problem.AddResidualBlock(cost_fct1, nullptr, td);
 
     // Solve the problem we just built
     ceres::Solver::Options options;
@@ -179,7 +185,9 @@ double AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<
     _map_frame_dbapar.clear();
     _map_frame_dbgpar.clear();
 
-    return td[0];
+    td = t_delay[0];
+
+    return true;
 }
 
 uint AngularAdjustmentCERESAnalytic::addSingleFrameResiduals(ceres::Problem &problem,
@@ -1037,7 +1045,7 @@ bool AngularAdjustmentCERESAnalytic::landmarkOptimizationNoFov(std::shared_ptr<F
     }
 
     // Add a prior to prevent scale from diverging
-    ceres::CostFunction *cost_fct1 = new scalePrior(info_scale);
+    ceres::CostFunction *cost_fct1 = new Prior1D(info_scale, 1.0);
     problem.AddResidualBlock(cost_fct1, nullptr, lambda);
 
     // Solve the problem we just built
@@ -1238,16 +1246,19 @@ Eigen::MatrixXd AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_
     // Compute the covariance of the non linear factor
     block_relpose.Evaluate();
     Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6);
+    Eigen::MatrixXd Sigma =
+        (_marginalization->_Ak + Eigen::MatrixXd::Identity(_marginalization->_n, _marginalization->_n))
+            .inverse(); // Add a small value to avoid singularity
     if (_marginalization->_n == 30) {
         Eigen::MatrixXd J    = Eigen::MatrixXd::Zero(6, 30);
         J.block(0, 0, 6, 6)  = block_relpose._jacobians.at(0);
         J.block(0, 15, 6, 6) = block_relpose._jacobians.at(1);
-        cov                  = J * _marginalization->_Sigma_k * J.transpose();
+        cov                  = J * Sigma * J.transpose();
     } else if (_marginalization->_n == 12) {
         Eigen::MatrixXd J   = Eigen::MatrixXd::Zero(6, 12);
         J.block(0, 0, 6, 6) = block_relpose._jacobians.at(0);
         J.block(0, 6, 6, 6) = block_relpose._jacobians.at(1);
-        cov                 = J * _marginalization->_Sigma_k * J.transpose();
+        cov                 = J * Sigma * J.transpose();
     } else {
         std::cout << _marginalization->_n << std::endl;
     }

@@ -17,6 +17,7 @@
 #include "isaeslam/dataproviders/adataprovider.h"
 #include "isaeslam/estimator/ESKFEstimator.h"
 #include "isaeslam/estimator/EpipolarPoseEstimator.h"
+#include "isaeslam/estimator/PnPPoseEstimator.h"
 #include "isaeslam/featuredetectors/opencv_detectors/cvORBFeatureDetector.h"
 #include "isaeslam/featurematchers/Point2DFeatureMatcher.h"
 #include "isaeslam/featurematchers/Point2DFeatureTracker.h"
@@ -304,6 +305,11 @@ class SLAMMonoVIO : public SLAMCore {
      * @brief Initialization steps with bi-monocular only for IMU initialization
      */
     bool step_init();
+
+    /*!
+     * @brief For profiling at IMU rate
+     */
+    void IMUprofiling();
 
   private:
     std::shared_ptr<IMU> _last_IMU; //!< Last IMU processed by the SLAM

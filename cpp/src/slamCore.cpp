@@ -296,15 +296,19 @@ void SLAMCore::computeFeatureVelocity(typed_vec_match &matches) {
                              match_vec.second.at(0).first->getSensor()->getFrame()->getTimestamp()) *
                     1e-9;
         for (auto &match : match_vec.second) {
-            
             std::vector<Eigen::Vector3d> vel_vec;
             for (uint i = 0; i < match.first->getBearingVectors().size(); i++) {
                 Eigen::Vector3d velocity =
                     (match.second->getBearingVectors().at(i) - match.first->getBearingVectors().at(i)) / dt;
                 vel_vec.push_back(velocity);
             }
+            // for (uint i = 0; i < match.first->getPoints().size(); i++) {
+            //     Eigen::Vector2d vel_2d =
+            //         (match.second->getPoints().at(i) - match.first->getPoints().at(i)) / dt;
+            //     Eigen::Vector3d velocity(vel_2d.x(), vel_2d.y(), 0);
+            //     vel_vec.push_back(velocity);
+            // }
             match.first->setVelocity(vel_vec);
-
         }
     }
 }
@@ -383,6 +387,8 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
     double n_matches_lmk = 0;
 
     // Compute parallax
+    Eigen::Affine3d T_lc_c =
+        getLastKF()->getSensors().at(0)->getWorld2SensorTransform() * f->getSensors().at(0)->getSensor2WorldTransform();
     for (auto tmatch : _matches_in_time_lmk) {
         n_matches += (_matches_in_time[tmatch.first].size() + _matches_in_time_lmk[tmatch.first].size());
         n_matches_lmk += _matches_in_time_lmk[tmatch.first].size();
@@ -390,15 +396,15 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
 
     for (auto tmatch : _matches_in_time) {
         for (auto match : tmatch.second) {
-            avg_parallax +=
-                std::acos(match.first->getBearingVectors().at(0).transpose() * match.second->getBearingVectors().at(0));
+            avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() * T_lc_c.rotation() *
+                                      match.second->getBearingVectors().at(0));
         }
     }
 
     for (auto tmatch : _matches_in_time_lmk) {
         for (auto match : tmatch.second) {
-            avg_parallax +=
-                std::acos(match.first->getBearingVectors().at(0).transpose() * match.second->getBearingVectors().at(0));
+            avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() * T_lc_c.rotation() *
+                                      match.second->getBearingVectors().at(0));
         }
     }
 
@@ -425,7 +431,7 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
     }
 
     // Case when many landmarks has been lost => KF voted
-    if (n_matches_lmk < _min_lmk_number) {
+    if ((n_matches_lmk + n_matches) < _min_lmk_number) {
         f->setKeyFrame();
         return true;
     }
@@ -484,8 +490,9 @@ void SLAMCore::profiling() {
         fw_res.close();
 
         std::ofstream fw_res1("log_slam/cov_mat.csv", std::ofstream::out | std::ofstream::trunc);
-        fw_res1 << "timestamp (ns), timestamp previous (ns), cov(00), cov(11), cov(22), cov(33), "
-                << "cov(44), cov(55), parallax, nb_tracks, nb_outliers, t(0), t(1), t(3), r(0), r(1), r(2), vel_norm \n";
+        fw_res1
+            << "timestamp (ns), timestamp previous (ns), cov(00), cov(11), cov(22), cov(33), "
+            << "cov(44), cov(55), parallax, nb_tracks, nb_outliers, t(0), t(1), t(3), r(0), r(1), r(2), vel_norm \n";
         fw_res1.close();
 
         // For timing statistics
@@ -532,11 +539,11 @@ void SLAMCore::profiling() {
             Eigen::Vector3d t         = T_fp_f.translation();
             Eigen::Vector3d r         = geometry::log_so3(T_fp_f.rotation());
             uint nb_lmk               = _matches_in_time_lmk["pointxd"].size() + _matches_in_time["pointxd"].size();
-            double vel_norm = _6d_velocity.block(2, 0, 3, 1).norm();
+            double vel_norm           = _6d_velocity.block(2, 0, 3, 1).norm();
             fw_res << f->getTimestamp() << "," << fp->getTimestamp() << "," << cov(0, 0) << "," << cov(1, 1) << ","
                    << cov(2, 2) << "," << cov(3, 3) << "," << cov(4, 4) << "," << cov(5, 5) << "," << _parallax << ","
-                   << nb_lmk << "," << t(0) << "," << t(1) << "," << t(2) << "," << r(0) << ","
-                   << r(1) << "," << r(2) << "," << vel_norm << "\n";
+                   << nb_lmk << "," << t(0) << "," << t(1) << "," << t(2) << "," << r(0) << "," << r(1) << "," << r(2)
+                   << "," << vel_norm << "\n";
             fw_res.close();
         }
 

@@ -304,7 +304,7 @@ void EUROCGrabber::load_filenames() {
 
         // Fill the queues
         _cam0_filename_queue.push(line_vector[idx_filename]);
-        _cam0_timestamp_queue.push(std::stod(line_vector[idx_timestamp]));
+        _cam0_timestamp_queue.push(std::stoll(line_vector[idx_timestamp]));
     }
 
     // Load cam1
@@ -340,7 +340,7 @@ void EUROCGrabber::load_filenames() {
 
         // Fill the queues
         _cam1_filename_queue.push(line_vector[idx_filename]);
-        _cam1_timestamp_queue.push(std::stod(line_vector[idx_timestamp]));
+        _cam1_timestamp_queue.push(std::stoll(line_vector[idx_timestamp]));
     }
 
     // Load imu
@@ -380,8 +380,8 @@ bool EUROCGrabber::addNextFrame() {
 
     // first catch an IMU measurement
     double imu_ts  = _imu_timestamp_queue.front();
-    double cam0_ts = _cam0_timestamp_queue.front();
-    double cam1_ts = _cam1_timestamp_queue.front();
+    long long cam0_ts = _cam0_timestamp_queue.front();
+    long long cam1_ts = _cam1_timestamp_queue.front();
 
     // Case 1 : imu is in the future, discard image until it is not
     if (imu_ts > cam0_ts + _time_tolerance * 1e9) {
@@ -432,9 +432,9 @@ bool EUROCGrabber::addNextFrame() {
             std::cout << "\n Throw img1 -- Sync error : " << (cam0_ts - cam1_ts) << "\n";
         } else {
 
-            std::string path_img0 = _folder_path + "/cam0/data/" +
-                                    std::to_string((uint64_t)cam0_ts) + ".png";  // _cam0_filename_queue.front();
-            std::string path_img1 = _folder_path + "/cam1/data/" +
+            std::string path_img0 = _folder_path + "/cam0/data/" + // _cam0_filename_queue.front();
+                                    std::to_string((uint64_t)cam0_ts) + ".png";
+            std::string path_img1 = _folder_path + "/cam1/data/" + // _cam1_filename_queue.front();
                                     std::to_string((uint64_t)cam1_ts) + ".png"; // _cam1_filename_queue.front();
             cv::Mat img_left = cv::imread(path_img0, cv::IMREAD_GRAYSCALE);
             if (img_left.empty()) {

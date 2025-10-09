@@ -306,7 +306,7 @@ bool SLAMMonoVIO::step_init() {
         return false;
     }
 
-    if (dt > 0.25)
+    if (dt > 0.5)
         _frame->setKeyFrame();
 
     // Send the frame to the viewer
@@ -364,8 +364,6 @@ bool SLAMMonoVIO::step_init() {
             _avg_detect_t = (_avg_detect_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         }
 
-        
-
         // Recover Map Landmark
         isae::timer::tic();
         uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
@@ -408,10 +406,9 @@ bool SLAMMonoVIO::frontEndStep() {
     _nframes++;
 
     // Estimate the transformation between frames using IMU for the rotation and cst velocity for translation
-    double dt          = (_frame->getTimestamp() - getLastKF()->getTimestamp()) * 1e-9;
-    Eigen::Affine3d dT = getLastKF()->getWorld2FrameTransform() * _last_IMU->_T_w_f_imu;
-    Eigen::Affine3d T_f_w =
-        geometry::se3_Vec6dtoRT(_6d_velocity * dt).inverse() * getLastKF()->getWorld2FrameTransform();
+    double dt             = (_frame->getTimestamp() - getLastKF()->getTimestamp()) * 1e-9;
+    Eigen::Affine3d dT    = getLastKF()->getWorld2FrameTransform() * _last_IMU->_T_w_f_imu;
+    Eigen::Affine3d T_f_w = dT.inverse() * getLastKF()->getWorld2FrameTransform();
     _frame->setWorld2FrameTransform(T_f_w);
 
     // Detect all features (only if we use the matcher)
@@ -441,15 +438,22 @@ bool SLAMMonoVIO::frontEndStep() {
     _avg_matches_time = (_avg_matches_time * (_nframes - 1) + nmatches_in_time) / _nframes;
     _avg_match_time_t = (_avg_match_time_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
-    // Get P3d from n-1 matched features and estimate 3D pose from 2D (n)/3D (n-1) matchings
-    // to predict pose. Also remove outliers from tracks_in_time vector
+    // Perform Essential RANSAC for match in time and PNP RANSAC for match in time landmark to remove outliers
     isae::timer::tic();
     int removed_matching_nb0 = _matches_in_time["pointxd"].size() + _matches_in_time_lmk["pointxd"].size();
-    bool good_it             = predict(_frame);
+
+    Eigen::MatrixXd cov;
+    Eigen::Affine3d dT_t;
+    EpipolarPoseEstimator est;
+    est.estimateTransformBetween(getLastKF(), _frame, _matches_in_time["pointxd"], dT_t, cov);
+    PnPPoseEstimator est_pnp;
+    est_pnp.estimateTransformBetween(getLastKF(), _frame, _matches_in_time_lmk["pointxd"], dT_t, cov);
+
     removed_matching_nb0 -= _matches_in_time["pointxd"].size() + _matches_in_time_lmk["pointxd"].size();
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
-    if (good_it) {
+    // If enough tracks perform ESKF update
+    if (_matches_in_time_lmk["pointxd"].size() + _matches_in_time["pointxd"].size() > 5) {
         _successive_fails = 0;
 
         // Epipolar Filtering for matches in time
@@ -497,7 +501,7 @@ bool SLAMMonoVIO::frontEndStep() {
         // - A KF is voted
         // - All matches in time are removed
         // Can be improved: redetect new points, retrack old features....
-
+        std::cout << "Not enough tracked Features" << std::endl;
         _successive_fails++;
         _frame->setWorld2FrameTransform(_last_IMU->_T_w_f_imu.inverse());
         outlierRemoval();
@@ -577,7 +581,7 @@ bool SLAMMonoVIO::frontEndStep() {
 
     // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
     if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
-        (_successive_fails > 5)) {
+        (_successive_fails > 10)) {
 
         _is_init = false;
         _local_map->reset();
@@ -617,8 +621,9 @@ bool SLAMMonoVIO::backEndStep() {
         // Optimize Local Map
         isae::timer::tic();
         if (_slam_param->_config.estimate_td) {
-            double td = _slam_param->getOptimizerBack()->localMapVIOptimizationTd(_local_map,
-                                                                                  _local_map->getFixedFrameNumber());
+            double td = 0;
+            _slam_param->getOptimizerBack()->localMapVIOptimizationTd(
+                _local_map, td, _local_map->getFixedFrameNumber());
             _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam -= td;
             std::cout << "Global time offset : " << _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam
                       << std::endl;
@@ -632,6 +637,7 @@ bool SLAMMonoVIO::backEndStep() {
 
         // profiling
         profiling();
+        IMUprofiling();
 
         // 3D Mesh update
         if (_slam_param->_config.mesh3D) {
@@ -646,6 +652,34 @@ bool SLAMMonoVIO::backEndStep() {
         _local_map_to_display = _local_map;
     }
     return true;
+}
+
+void SLAMMonoVIO::IMUprofiling() {
+
+    if (!_is_init) {
+
+        // Write header if not init
+        std::ofstream fw_res("log_slam/vio_poses.csv", std::ofstream::out | std::ofstream::trunc);
+        fw_res << "timestamp (ns), T_wf(00), T_wf(01), T_wf(02), T_wf(03), T_wf(10), T_wf(11), T_wf(12), "
+               << "T_wf(13), T_wf(20), T_wf(21), T_wf(22), T_wf(23), v_w(0), v_w(1), v_w(2), ba(0), ba(1), "
+               << "ba(2), bg(0), bg(1), bg(2)\n";
+        fw_res.close();
+
+    } else {
+
+        // Write in a csv file for evaluation
+        std::ofstream fw_res("log_slam/vio_poses.csv", std::ofstream::out | std::ofstream::app);
+        const Eigen::Matrix3d R = _frame->getFrame2WorldTransform().linear();
+        Eigen::Vector3d twc     = _frame->getFrame2WorldTransform().translation();
+        Eigen::Vector3d vw      = _frame->getIMU()->getVelocity();
+        Eigen::Vector3d ba      = _frame->getIMU()->getBa();
+        Eigen::Vector3d bg      = _frame->getIMU()->getBg();
+        fw_res << _frame->getTimestamp() << "," << R(0, 0) << "," << R(0, 1) << "," << R(0, 2) << "," << twc.x() << ","
+               << R(1, 0) << "," << R(1, 1) << "," << R(1, 2) << "," << twc.y() << "," << R(2, 0) << "," << R(2, 1)
+               << "," << R(2, 2) << "," << twc.z() << "," << vw.x() << "," << vw.y() << "," << vw.z() << "," << ba(0)
+               << "," << ba(1) << "," << ba(2) << "," << bg(0) << "," << bg(1) << "," << bg(2) << "\n";
+        fw_res.close();
+    }
 }
 
 } // namespace isae
