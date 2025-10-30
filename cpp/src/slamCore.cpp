@@ -288,7 +288,7 @@ void SLAMCore::computeFeatureVelocity(typed_vec_match &matches) {
 
         if (match_vec.second.empty())
             continue;
-        
+
         if (!match_vec.second.at(0).second->getSensor() || !match_vec.second.at(0).first->getSensor())
             continue;
 
@@ -299,15 +299,9 @@ void SLAMCore::computeFeatureVelocity(typed_vec_match &matches) {
             std::vector<Eigen::Vector3d> vel_vec;
             for (uint i = 0; i < match.first->getBearingVectors().size(); i++) {
                 Eigen::Vector3d velocity =
-                    (match.second->getBearingVectors().at(i) - match.first->getBearingVectors().at(i)) / dt;
+                    (match.first->getBearingVectors().at(i) - match.second->getBearingVectors().at(i)) / dt;
                 vel_vec.push_back(velocity);
             }
-            // for (uint i = 0; i < match.first->getPoints().size(); i++) {
-            //     Eigen::Vector2d vel_2d =
-            //         (match.second->getPoints().at(i) - match.first->getPoints().at(i)) / dt;
-            //     Eigen::Vector3d velocity(vel_2d.x(), vel_2d.y(), 0);
-            //     vel_vec.push_back(velocity);
-            // }
             match.first->setVelocity(vel_vec);
         }
     }
@@ -371,9 +365,6 @@ uint SLAMCore::trackFeatures(std::shared_ptr<ImageSensor> &sensor0,
                                                                  typed_tracker.second.tracker_nlvls_pyramids,
                                                                  typed_tracker.second.tracker_max_err,
                                                                  true);
-
-        // std::cout << "SLAMCORE DEBUG = track type : " << typed_tracker.first << std::endl;
-        // std::cout << "SLAMCORE DEBUG = total tracks : " << nb_tracks << std::endl;
     }
 
     return nb_tracks;
@@ -431,9 +422,18 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
     }
 
     // Case when many landmarks has been lost => KF voted
-    if ((n_matches_lmk + n_matches) < _min_lmk_number) {
-        f->setKeyFrame();
-        return true;
+    // In mono mode we include also the non triangulated features to avoid poor triangulation
+    // Else we just consider the triangulated landmarks
+    if (_slam_param->_config.slam_mode == "mono" || _slam_param->_config.slam_mode == "monovio") {
+        if ((n_matches_lmk + n_matches) < _min_lmk_number) {
+            f->setKeyFrame();
+            return true;
+        }
+    } else {
+        if (n_matches_lmk < _min_lmk_number) {
+            f->setKeyFrame();
+            return true;
+        }
     }
 
     return false;

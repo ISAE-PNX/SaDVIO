@@ -67,7 +67,8 @@ bool AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<is
                 // For all feature
                 std::vector<std::weak_ptr<AFeature>> featuresAssociatedLandmarks = landmark->getFeatures();
 
-                for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
+                for (int k = 0; k < featuresAssociatedLandmarks.size(); k++) {
+                    std::weak_ptr<AFeature> wfeature  = featuresAssociatedLandmarks.at(k);
                     std::shared_ptr<AFeature> feature = wfeature.lock();
                     std::shared_ptr<ImageSensor> cam  = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
@@ -77,11 +78,15 @@ bool AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<is
                         _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
+                    
+                    // We skip the time variable for the last seen feature and if there is not enough rotation
+                    if (k < featuresAssociatedLandmarks.size() - 1 &&
+                        geometry::log_so3(frame->getIMU()->getDeltaR()).norm() >
+                            0.05) { 
 
-                    if (!feature->getVelocity().empty()) {
                         ceres::CostFunction *cost_fct =
                             new AngularErrCeres_pointxd_td(feature->getBearingVectors().at(0),
-                                                           feature->getVelocity().at(0),
+                                                           frame->getIMU(),
                                                            cam->getFrame2SensorTransform(),
                                                            frame->getWorld2FrameTransform(),
                                                            landmark->getPose().translation(),
@@ -92,6 +97,7 @@ bool AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<is
                                                  _map_frame_posepar.at(frame).values(),
                                                  _map_lmk_ptpar.at(landmark).values(),
                                                  t_delay);
+
                     } else {
                         ceres::CostFunction *cost_fct =
                             new AngularErrCeres_pointxd_dx(feature->getBearingVectors().at(0),
@@ -111,11 +117,6 @@ bool AngularAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<is
     }
     addIMUResiduals(problem, loss_function, ordering, frame_vector, fixed_frame_number);
     addMarginalizationResiduals(problem, loss_function, ordering);
-
-    // Add a prior to prevent scale from diverging
-    // double info_td = 1e-1;
-    // ceres::CostFunction *cost_fct1 = new Prior1D(info_td, 0.0);
-    // problem.AddResidualBlock(cost_fct1, nullptr, td);
 
     // Solve the problem we just built
     ceres::Solver::Options options;
@@ -1131,7 +1132,8 @@ Eigen::MatrixXd AngularAdjustmentCERESAnalytic::marginalizeRelative(std::shared_
         _map_frame_dbapar.emplace(frame1, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
         _map_frame_dbgpar.emplace(frame1, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
 
-        // Parameters of marginalization blocks (the variables are stored in the order v0, v1, ba0, bg0, ba1, bg0)
+        // Parameters of marginalization blocks (the variables are stored in the order v0, v1, ba0, bg0, ba1,
+        // bg0)
         std::vector<double *> parameter_blocks;
         std::vector<int> parameter_idx;
 

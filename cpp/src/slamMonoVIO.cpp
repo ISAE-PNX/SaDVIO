@@ -624,7 +624,7 @@ bool SLAMMonoVIO::backEndStep() {
             double td = 0;
             _slam_param->getOptimizerBack()->localMapVIOptimizationTd(
                 _local_map, td, _local_map->getFixedFrameNumber());
-            _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam -= td;
+            _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam += td;
             std::cout << "Global time offset : " << _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam
                       << std::endl;
         } else {

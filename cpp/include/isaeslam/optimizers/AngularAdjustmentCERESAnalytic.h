@@ -142,17 +142,17 @@ class AngularErrCeres_pointxd_dx : public ceres::SizedCostFunction<2, 6, 3> {
  * The cost function uses 2D feature velocity to estimate the time delay, as proposed in "Online temporal calibration
  * for monocular visual-inertial systems" by Qin et al Source: https://arxiv.org/abs/1808.00692
  */
-class AngularErrCeres_pointxd_td : public ceres::SizedCostFunction<2, 6, 3, 1> {
+class AngularErrCeres_pointxd_td_velo : public ceres::SizedCostFunction<2, 6, 3, 1> {
   public:
-    AngularErrCeres_pointxd_td(const Eigen::Vector3d &bearing_vector,
-                               const Eigen::Vector3d &velocity,
-                               const Eigen::Affine3d &T_s_f,
-                               const Eigen::Affine3d &T_f_w,
-                               const Eigen::Vector3d &t_w_lmk,
-                               const double sigma = 1)
+    AngularErrCeres_pointxd_td_velo(const Eigen::Vector3d &bearing_vector,
+                                    const Eigen::Vector3d &velocity,
+                                    const Eigen::Affine3d &T_s_f,
+                                    const Eigen::Affine3d &T_f_w,
+                                    const Eigen::Vector3d &t_w_lmk,
+                                    const double sigma = 1)
         : _bearing_vector(bearing_vector), _velocity(velocity), _T_s_f(T_s_f), _T_f_w(T_f_w), _t_w_lmk(t_w_lmk),
           _sigma(sigma) {}
-    ~AngularErrCeres_pointxd_td() {}
+    ~AngularErrCeres_pointxd_td_velo() {}
 
     virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
         // Get World to sensor transform
@@ -229,6 +229,212 @@ class AngularErrCeres_pointxd_td : public ceres::SizedCostFunction<2, 6, 3, 1> {
     const Eigen::Vector3d _t_w_lmk;        //!< Position of the landmark in the world frame
     const double _sigma;                   //!< Standard deviation for the residuals, used as a weight
 };
+
+/*!
+ * @brief Angular error cost function for a point landmark in the sensor frame, with time delta.
+ * Parameters are delta update of the frame pose, the landmark position and the time delta.
+ *
+ * The cost function uses the velocity and the angular velocity from an IMU sensor to derive a corrected
+ * camera pose taking into account the delay.
+ */
+class AngularErrCeres_pointxd_td : public ceres::SizedCostFunction<2, 6, 3, 1> {
+  public:
+    AngularErrCeres_pointxd_td(const Eigen::Vector3d &bearing_vector,
+                               const std::shared_ptr<IMU> &imu,
+                               const Eigen::Affine3d &T_s_f,
+                               const Eigen::Affine3d &T_f_w,
+                               const Eigen::Vector3d &t_w_lmk,
+                               const double sigma = 1)
+        : _bearing_vector(bearing_vector), _imu(imu), _T_s_f(T_s_f), _T_f_w(T_f_w), _t_w_lmk(t_w_lmk), _sigma(sigma) {}
+    ~AngularErrCeres_pointxd_td() {}
+
+    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
+        // Get World to sensor transform
+        Eigen::Affine3d dT = geometry::se3_doubleVec6dtoRT(parameters[0]);
+        Eigen::Vector3d dt = Eigen::Map<const Eigen::Vector3d>(parameters[1]);
+        double weight      = 1 / (_sigma);
+
+        // Update due to td
+        double td             = *parameters[2];
+        Eigen::Vector3d gyr   = _imu->getGyr();
+        Eigen::Vector3d vel   = _imu->getVelocity();
+        Eigen::Matrix3d dR_td = geometry::exp_so3(gyr * td);
+        Eigen::Vector3d dt_td = vel * td;
+        Eigen::Affine3d dT_td = Eigen::Affine3d::Identity();
+        dT_td.linear()        = dR_td;
+        dT_td.translation()   = dt_td;
+
+        // Compute tangent plane
+        Eigen::Vector3d b1;
+        if ((_bearing_vector - Eigen::Vector3d(1, 0, 0)).norm() > 1e-5) {
+            b1 = _bearing_vector.cross(Eigen::Vector3d(1, 0, 0));
+            b1.normalize();
+        } else {
+            b1 = _bearing_vector.cross(Eigen::Vector3d(0, 0, 1));
+            b1.normalize();
+        }
+
+        Eigen::Vector3d b2 = b1.cross(_bearing_vector);
+        b2.normalize();
+
+        Eigen::MatrixXd P  = Eigen::MatrixXd::Zero(3, 2);
+        P.col(0)           = b1;
+        P.col(1)           = b2;
+        Eigen::MatrixXd Pt = P.transpose();
+
+        // Get Landmark P3D pose
+        Eigen::Affine3d dT_td_inv = dT_td.inverse();
+        Eigen::Affine3d T_f_w_td  = dT_td_inv * _T_f_w;
+        Eigen::Vector3d t_s_lmk   = _T_s_f * T_f_w_td * dT * (_t_w_lmk + dt);
+        double t_s_lmk_norm       = t_s_lmk.norm();
+        Eigen::Vector3d b_s_lmk   = t_s_lmk / t_s_lmk_norm;
+
+        Eigen::Map<Eigen::Vector2d> res(residuals);
+        res = weight * Pt * (b_s_lmk - _bearing_vector);
+
+        if (jacobians != NULL) {
+
+            Eigen::MatrixXd J_e_lmk = Eigen::MatrixXd::Zero(2, 3);
+            J_e_lmk += Pt * (Eigen::Matrix3d::Identity() - b_s_lmk * b_s_lmk.transpose()) * _T_s_f.linear() *
+                       T_f_w_td.linear() / t_s_lmk_norm;
+
+            if (jacobians[0] != NULL) {
+                Eigen::MatrixXd J_bear_frame = Eigen::MatrixXd::Zero(3, 6);
+                J_bear_frame.block(0, 0, 3, 3) =
+                    -dT.linear() * isae::geometry::skewMatrix(_t_w_lmk + dt) *
+                    geometry::so3_rightJacobian(isae::geometry::se3_RTtoVec6d(dT).block<3, 1>(0, 0));
+                J_bear_frame.block(0, 3, 3, 3) = Eigen::Matrix3d::Identity();
+
+                Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>> J_frame(jacobians[0]);
+                J_frame = weight * J_e_lmk * J_bear_frame;
+            }
+
+            if (jacobians[1] != NULL) {
+                Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>> J_lmk(jacobians[1]);
+                J_lmk = weight * J_e_lmk * dT.linear();
+            }
+
+            if (jacobians[2] != NULL) {
+                Eigen::Map<Eigen::Vector2d> J_td(jacobians[2]);
+                J_td.setZero();
+
+                Eigen::MatrixXd J_e_alpha = Eigen::MatrixXd::Zero(2, 3);
+                J_e_alpha +=
+                    Pt * (Eigen::Matrix3d::Identity() - b_s_lmk * b_s_lmk.transpose()) * _T_s_f.linear() / t_s_lmk_norm;
+
+                Eigen::MatrixXd J_alpha_dTtdinv = Eigen::MatrixXd::Zero(3, 6);
+                Eigen::Matrix3d Jr              = geometry::so3_rightJacobian(gyr * td);
+                J_alpha_dTtdinv.block(0, 0, 3, 3) =
+                    -dT_td_inv.rotation() * geometry::skewMatrix(_T_f_w * dT * (_t_w_lmk + dt));
+                J_alpha_dTtdinv.block(0, 3, 3, 3) = Eigen::Matrix3d::Identity();
+                // J_Tfwtd_td.block(0, 0, 3, 1) = -_T_f_w.rotation().transpose() * geometry::exp_so3(gyr * td) * Jr *
+                // gyr; J_Tfwtd_td.block(3, 0, 3, 1) =
+                //     geometry::exp_so3(gyr * td).transpose() * geometry::skewMatrix(_T_f_w.translation()) *
+                //         geometry::exp_so3(gyr * td) * Jr * gyr -
+                //     dR_td * geometry::skewMatrix(vel) * dR_td.transpose() * Jr * gyr * td - dR_td.transpose() * vel;
+                Eigen::MatrixXd J_dTtdinv_dTtd   = Eigen::MatrixXd::Zero(6, 6);
+                J_dTtdinv_dTtd.block(0, 0, 3, 3) = -dT_td.rotation();
+                J_dTtdinv_dTtd.block(0, 3, 3, 3) = -dT_td_inv.rotation() * geometry::skewMatrix(dT_td.translation());
+                J_dTtdinv_dTtd.block(3, 3, 3, 3) = -dT_td_inv.rotation();
+                Eigen::MatrixXd J_dTtd_td        = Eigen::MatrixXd::Zero(6, 1);
+                J_dTtd_td.block(0, 0, 3, 1)      = Jr * gyr;
+                J_dTtd_td.block(3, 0, 3, 1)      = vel;
+                J_td                             = weight * J_e_alpha * J_alpha_dTtdinv * J_dTtdinv_dTtd * J_dTtd_td;
+            }
+        }
+
+        return true;
+    }
+
+  protected:
+    const Eigen::Vector3d _bearing_vector; //!< Bearing vector of the landmark in the sensor frame
+    const std::shared_ptr<IMU> _imu;       //!< IMU to get angular velocity
+    const Eigen::Affine3d _T_s_f;          //!< Transform of the frame w.r.t. the sensor
+    const Eigen::Affine3d _T_f_w;          //!< Transform of the world w.r.t. the frame
+    const Eigen::Vector3d _t_w_lmk;        //!< Position of the landmark in the world frame
+    const double _sigma;                   //!< Standard deviation for the residuals, used as a weight
+};
+
+// struct AngularErrCeres_pointxd_td {
+//   public:
+//     AngularErrCeres_pointxd_td(const Eigen::Vector3d &bearing_vector,
+//                                const std::shared_ptr<IMU> &imu,
+//                                const Eigen::Affine3d &T_s_f,
+//                                const Eigen::Affine3d &T_f_w,
+//                                const Eigen::Vector3d &t_w_lmk,
+//                                const double sigma = 1)
+//         : _bearing_vector(bearing_vector), _imu(imu), _T_s_f(T_s_f), _T_f_w(T_f_w), _t_w_lmk(t_w_lmk), _sigma(sigma)
+//         {}
+
+//     // Constant parameters used to process the residual
+//     const Eigen::Vector3d _bearing_vector; //!< Bearing vector of the landmark in the sensor frame
+//     const std::shared_ptr<IMU> _imu;       //!< IMU to get angular velocity
+//     const Eigen::Affine3d _T_s_f;          //!< Transform of the frame w.r.t. the sensor
+//     const Eigen::Affine3d _T_f_w;          //!< Transform of the world w.r.t. the frame
+//     const Eigen::Vector3d _t_w_lmk;        //!< Position of the landmark in the world frame
+//     const double _sigma;                   //!< Standard deviation for the residuals, used as a weight
+
+//     template <typename T>
+//     bool operator()(const T *const dX, const T *const dlmk, const T *const dtd, T *residual) const {
+
+//         // Get World to sensor transform
+//         Eigen::Affine3d dT = geometry::se3_doubleVec6dtoRT(dX);
+//         Eigen::Vector3d dt = Eigen::Map<const Eigen::Vector3d>(dlmk);
+//         double weight      = 1 / (_sigma);
+
+//         // Update due to td
+//         double td             = *dtd;
+//         Eigen::Vector3d gyr   = _imu->getGyr();
+//         Eigen::Vector3d vel   = _imu->getVelocity();
+//         Eigen::Matrix3d dR_td = geometry::exp_so3(gyr * td);
+//         Eigen::Vector3d dt_td = vel * td;
+//         Eigen::Affine3d dT_td = Eigen::Affine3d::Identity();
+//         dT_td.linear()        = dR_td;
+//         dT_td.translation()   = dt_td;
+
+//         // Compute tangent plane
+//         Eigen::Vector3d b1;
+//         if ((_bearing_vector - Eigen::Vector3d(1, 0, 0)).norm() > 1e-5) {
+//             b1 = _bearing_vector.cross(Eigen::Vector3d(1, 0, 0));
+//             b1.normalize();
+//         } else {
+//             b1 = _bearing_vector.cross(Eigen::Vector3d(0, 0, 1));
+//             b1.normalize();
+//         }
+
+//         Eigen::Vector3d b2 = b1.cross(_bearing_vector);
+//         b2.normalize();
+
+//         Eigen::MatrixXd P  = Eigen::MatrixXd::Zero(3, 2);
+//         P.col(0)           = b1;
+//         P.col(1)           = b2;
+//         Eigen::MatrixXd Pt = P.transpose();
+
+//         // Get Landmark P3D pose
+//         Eigen::Affine3d T_f_w_td = dT_td.inverse() * _T_f_w;
+//         Eigen::Vector3d t_s_lmk  = _T_s_f * T_f_w_td * dT * (_t_w_lmk + dt);
+//         double t_s_lmk_norm      = t_s_lmk.norm();
+//         Eigen::Vector3d b_s_lmk  = t_s_lmk / t_s_lmk_norm;
+
+//         Eigen::Map<Eigen::Vector2d> res(residual);
+//         res = weight * Pt * (b_s_lmk - _bearing_vector);
+
+//         return true;
+//     }
+
+//     // Factory to hide the construction of the CostFunction object from the client code.
+//     static ceres::CostFunction *Create(const Eigen::Vector3d &bearing_vector,
+//                                        const std::shared_ptr<IMU> &imu,
+//                                        const Eigen::Affine3d &T_s_f,
+//                                        const Eigen::Affine3d &T_f_w,
+//                                        const Eigen::Vector3d &t_w_lmk,
+//                                        const double sigma = 1) {
+//         return (new ceres::NumericDiffCostFunction<AngularErrCeres_pointxd_td, ceres::FORWARD, 2, 6, 3, 1>(
+//             new AngularErrCeres_pointxd_td(bearing_vector, imu, T_s_f, T_f_w, t_w_lmk, sigma)));
+//         // 6: dof first argument (framepose_vec), 3:dof second argument (landmark_p3d), 2: size of error
+//         // residual (residual)
+//     }
+// };
 
 /*!
  * @brief An angular cost function that depends on the scale of the motion

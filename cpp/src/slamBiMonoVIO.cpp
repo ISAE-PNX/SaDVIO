@@ -513,11 +513,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
         float lmk_dt    = isae::timer::silentToc();
         _avg_lmk_init_t = (_avg_lmk_init_t * (_nkeyframes - 1) + lmk_dt) / _nkeyframes;
 
-        if (_slam_param->_config.estimate_td) {
-            computeFeatureVelocity(_matches_in_time);
-            computeFeatureVelocity(_matches_in_time_lmk);
-        }
-
         // Send frame to optim to optimizer
         _frame_to_optim = _frame;
         _last_IMU       = _frame_to_optim->getIMU();
@@ -586,10 +581,10 @@ bool SLAMBiMonoVIO::backEndStep() {
 
         // Optimize Local Map
         isae::timer::tic();
-        if (_slam_param->_config.estimate_td) {
+        if (_slam_param->_config.estimate_td && (geometry::log_so3(_frame_to_optim->getIMU()->getDeltaR()).norm() > 0.05)) {
             double td = 0;
             _slam_param->getOptimizerBack()->localMapVIOptimizationTd(_local_map, td, _local_map->getFixedFrameNumber());
-            _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam -= td;
+            _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam += td;
             std::cout << "Global time offset : " << _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam
                       << std::endl;
         } else {

@@ -70,6 +70,7 @@ bool BundleAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<isa
                     std::shared_ptr<AFeature> feature = wfeature.lock();
                     std::shared_ptr<ImageSensor> cam  = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
+                    std::shared_ptr<IMU> imu          = frame->getIMU();
 
                     // Check the consistency of the frame
                     if (!feature || !frame->isKeyFrame() ||
@@ -78,12 +79,9 @@ bool BundleAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<isa
                     }
 
                     if (!feature->getVelocity().empty()) {
-                        Eigen::Vector2d velocity =
-                            Eigen::Vector2d(feature->getVelocity().at(0).x(), feature->getVelocity().at(0).y());
-                        if (velocity.norm() > 800)
-                            continue;
+
                         ceres::CostFunction *cost_fct = new ReprojectionErrCeres_pointxd_dx_td(
-                            feature->getPoints().at(0), velocity, cam, landmark->getPose());
+                            feature->getPoints().at(0), cam, imu, landmark->getPose());
 
                         problem.AddResidualBlock(cost_fct,
                                                  loss_function,
@@ -105,11 +103,6 @@ bool BundleAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<isa
     }
     addIMUResiduals(problem, loss_function, ordering, frame_vector, fixed_frame_number);
     addMarginalizationResiduals(problem, loss_function, ordering);
-
-    // Add a prior to prevent scale from diverging
-    // double info_td = 1e-1;
-    // ceres::CostFunction *cost_fct1 = new Prior1D(info_td, 0.0);
-    // problem.AddResidualBlock(cost_fct1, nullptr, td);
 
     // Solve the problem we just built
     ceres::Solver::Options options;
