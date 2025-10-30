@@ -562,11 +562,6 @@ bool SLAMMonoVIO::frontEndStep() {
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         _avg_resur_lmk   = (_avg_lmk_resur_t * (_nkeyframes - 1) + resu) / _nkeyframes;
 
-        if (_slam_param->_config.estimate_td) {
-            computeFeatureVelocity(_matches_in_time);
-            computeFeatureVelocity(_matches_in_time_lmk);
-        }
-
         // Wait the end of optim
         while (_frame_to_optim != nullptr) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -620,10 +615,9 @@ bool SLAMMonoVIO::backEndStep() {
 
         // Optimize Local Map
         isae::timer::tic();
-        if (_slam_param->_config.estimate_td) {
+        if (_slam_param->_config.estimate_td && (geometry::log_so3(_frame_to_optim->getIMU()->getDeltaR()).norm() > 0.05)) {
             double td = 0;
-            _slam_param->getOptimizerBack()->localMapVIOptimizationTd(
-                _local_map, td, _local_map->getFixedFrameNumber());
+            _slam_param->getOptimizerBack()->localMapVIOptimizationTd(_local_map, td, _local_map->getFixedFrameNumber());
             _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam += td;
             std::cout << "Global time offset : " << _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam
                       << std::endl;
