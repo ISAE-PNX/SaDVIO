@@ -181,12 +181,11 @@ class SLAMCore {
     /*!
      * @brief Performs landmark resurection
      *
-     * @param localmap Local maps that contains the landmark to project
-     * @param f Frame on which the landmarks are resurected
+     * @param sensor Sensor on which the landmarks are resurected
      *
      * @return The number of resurected landmarks
      */
-    uint recoverFeatureFromMapLandmarks(std::shared_ptr<isae::AMap> localmap, std::shared_ptr<Frame> &f);
+    uint recoverFeatureFromMapLandmarks(std::shared_ptr<ImageSensor> &sensor);
 
     /*!
      * @brief Determines if the frame in argument is a KF
