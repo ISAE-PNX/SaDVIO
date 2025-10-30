@@ -173,9 +173,8 @@ bool SLAMBiMono::frontEndStep() {
 
         // Recover Map Landmark
         isae::timer::tic();
-        _map_mutex.lock();
-        uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
-        _map_mutex.unlock();
+        uint resu = recoverFeatureFromMapLandmarks(_frame->getSensors().at(0));
+        
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         _avg_resur_lmk   = (_avg_lmk_resur_t * (_nkeyframes - 1) + resu) / _nkeyframes;
 

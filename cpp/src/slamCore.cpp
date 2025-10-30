@@ -227,13 +227,15 @@ typed_vec_match SLAMCore::epipolarFiltering(std::shared_ptr<ImageSensor> &cam0,
     return valid_matches;
 }
 
-uint SLAMCore::recoverFeatureFromMapLandmarks(std::shared_ptr<isae::AMap> localmap, std::shared_ptr<Frame> &f) {
+uint SLAMCore::recoverFeatureFromMapLandmarks(std::shared_ptr<ImageSensor> &sensor) {
     uint nb_resurected = 0;
 
+    _map_mutex.lock();
     for (auto typed_ldmk : localmap->getLandmarks()) {
         nb_resurected += _slam_param->getFeatureMatchers()[typed_ldmk.first].feature_matcher->ldmk_match(
-            f->getSensors().at(0), typed_ldmk.second, 5, 5);
+            sensor, typed_ldmk.second, 5, 5);
     }
+    _map_mutex.unlock();
 
     return nb_resurected;
 }
