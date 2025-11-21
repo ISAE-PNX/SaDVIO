@@ -231,7 +231,7 @@ uint SLAMCore::recoverFeatureFromMapLandmarks(std::shared_ptr<ImageSensor> &sens
     uint nb_resurected = 0;
 
     _map_mutex.lock();
-    for (auto typed_ldmk : localmap->getLandmarks()) {
+    for (auto typed_ldmk : _local_map->getLandmarks()) {
         nb_resurected += _slam_param->getFeatureMatchers()[typed_ldmk.first].feature_matcher->ldmk_match(
             sensor, typed_ldmk.second, 5, 5);
     }
