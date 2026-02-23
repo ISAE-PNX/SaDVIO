@@ -8,3 +8,5 @@ Documentation/
 
 cpp/build
 .vscode/
+
+*.asv
