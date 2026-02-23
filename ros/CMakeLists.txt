@@ -74,7 +74,7 @@ install(
 # Executables generation
 # -------------------------------------------------------------------
 add_executable(vio_ros ./src/main.cpp)
-ament_target_dependencies(vio_ros rclcpp sensor_msgs pcl_conversions visualization_msgs tf2_ros tf2_geometry_msgs std_msgs cv_bridge)
+ament_target_dependencies(vio_ros ament_index_cpp rclcpp sensor_msgs pcl_conversions visualization_msgs tf2_ros tf2_geometry_msgs std_msgs cv_bridge)
 target_link_libraries(vio_ros ${PROJECT_NAME})
 
 install(TARGETS vio_ros
