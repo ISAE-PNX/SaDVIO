@@ -1,7 +1,7 @@
 #ifndef ROSVISUALIZER_H
 #define ROSVISUALIZER_H
 
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/core.hpp>
 #include <thread>
 
@@ -16,7 +16,7 @@
 #include <sensor_msgs/msg/point_field.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <std_msgs/msg/header.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker.hpp>
 
