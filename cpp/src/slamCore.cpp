@@ -444,15 +444,26 @@ bool SLAMCore::predict(std::shared_ptr<Frame> &f) {
     }
 }
 
+void SLAMCore::initProfiling(const std::filesystem::path& p) {
+    if (!p.empty())
+        profiling_path = p;
+    if (std::filesystem::is_regular_file(profiling_path))
+        profiling_path = profiling_path.parent_path();
+
+    if (!std::filesystem::is_directory(profiling_path))
+        std::filesystem::create_directory(profiling_path);
+    std::cout << "SLAM results will be stored in"
+                << std::filesystem::absolute(profiling_path)
+                << std::endl;
+}
+
 void SLAMCore::profiling() {
-
-    if (!std::filesystem::is_directory("log_slam"))
-        std::filesystem::create_directory("log_slam");
-
     if (!_is_init) {
+        if (profiling_path.empty())
+            initProfiling();
 
         // Clean the result file
-        std::ofstream fw_res("log_slam/results.csv", std::ofstream::out | std::ofstream::trunc);
+        std::ofstream fw_res(profiling_path / "results.csv", std::ofstream::out | std::ofstream::trunc);
         fw_res << "timestamp (ns), nframes, T_wf(00), T_wf(01), T_wf(02), T_wf(03), T_wf(10), T_wf(11), T_wf(12), "
                << "T_wf(13), T_wf(20), T_wf(21), T_wf(22), T_wf(23)\n";
         fw_res.close();
@@ -488,7 +499,7 @@ void SLAMCore::profiling() {
         // Write in a txt file for evaluation
         if (getLastKF()) {
             std::shared_ptr<Frame> f = _local_map->getFrames().front();
-            std::ofstream fw_res("log_slam/results.csv", std::ofstream::out | std::ofstream::app);
+            std::ofstream fw_res(profiling_path / "results.csv", std::ofstream::out | std::ofstream::app);
             Eigen::Affine3d T_w_f   = f->getFrame2WorldTransform();
             const Eigen::Matrix3d R = T_w_f.linear();
             Eigen::Vector3d twc     = T_w_f.translation();
@@ -531,8 +542,8 @@ void SLAMCore::profiling() {
     }
 
     // Write a txt file for profiling
-    std::ofstream fw("log_slam/slam_profiler.txt", std::ofstream::out);
-    fw << "===== SLAM profiler ======= \n";
+    std::ofstream fw(profiling_path / "slam_profiling.txt", std::ofstream::out);
+    fw << "===== SLAM profiling ======= \n";
     fw << std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) << "\n";
     fw << "Dataset: " << _slam_param->_config.dataset_id << "\n";
     fw << "Number of frames: " << _nframes << "\n";

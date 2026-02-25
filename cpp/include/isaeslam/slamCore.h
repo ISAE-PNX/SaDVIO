@@ -187,6 +187,16 @@ class SLAMCore {
     bool shouldInsertKeyframe(std::shared_ptr<Frame> &f);
     std::shared_ptr<Frame> getLastKF() { return _local_map->getLastFrame(); }
 
+
+    /*!
+     * @brief TODO 
+     */
+    void initProfiling(const std::filesystem::path& p);
+    void initProfiling() {
+        // Create an empty path object to use default initialization
+        initProfiling(std::filesystem::path("log_slam"));
+    }
+
     /*!
      * @brief A function to monitor the SLAM behaviour
      */
@@ -216,6 +226,7 @@ class SLAMCore {
     std::shared_ptr<Frame> _frame_to_optim; //!< For communication between front-end and back-end
 
     // Profiling variables
+    std::filesystem::path profiling_path;
     uint _nframes;
     uint _nkeyframes;
     float _avg_detect_t;
