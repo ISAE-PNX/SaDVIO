@@ -54,7 +54,7 @@ You can then run this executable, adding the folder of the config files and the 
 
 To make SaDVIO available as a library, install it
 ```bash
-# depending on the install path ${CMAKE_INSTALL_LIBDIR}, sudo may not be required - but make sure that CMake can find it
+# depending on the install path ${CMAKE_INSTALL_LIBDIR}, sudo may not be required - but make sure that CMake can find it!
 sudo make install
 ```
 The default location of the installed library is `/usr/local/lib` (so `sudo` required). 
@@ -75,27 +75,40 @@ cd SaDVIO/cpp/build/
 
 # Usage
 
+The ROS2 visualizer (`rosVisualizer.h`) is not only responsible for the visualization but for all ROS2 outputs from SaDVIO.
+The SLAM results are checked once every millisecond and, if there is new information to display, it is published through the following topics.
+The SLAM's displayable values are reset after publishing so that the visualizer only publishes new information (the SLAM maintains its internal values).
+
 ## Topics
 
 <p align='center'>
     <img src="./doc/rosgraph_SaDVIO.png" alt="drawing" width="800"/>
 </p>
 
-### vo_pose
+### `vo_pose`
 
-Of type `geometry_msgs::msg::PoseStamped`; provides the current estimated pose (rotation + translation in a fixed local frame).
+Of type `geometry_msgs::msg::PoseStamped`; provides the current estimated pose (rotation + translation in a fixed local frame) from the SLAM's `_frame_to_display`.
 
-### map_local_cloud
+### `image_kps`
 
-Of type `visualization_msgs::msg::Marker`; displays the point cloud of features detected in the latest key frame.
+Of type `sensor_msgs::msg::Image`; displays the latest key frame image with the detected features: Red for tracked features, Blue for untracked features, Green for 'resurrected' features. Based on the SLAM's `_frame_to_display`
 
-### vo_traj
 
-Of type `visualization_msgs::msg::Marker`; displays the full estimated trajectory of the vehicle.
+### `vo_traj`
 
-### image_kps
+Of type `visualization_msgs::msg::Marker`; displays the current estimated trajectory of the vehicle (positions only, given in the local world frame). Based on the SLAM's `_local_map_to_display`.
 
-Of type `sensor_msgs::msg::Image`; displays the latest key frame image with the detected features: Red for tracked features, Blue for untracked features, Green for 'resurrected' features.
+### `map_local_cloud`
+
+Of type `visualization_msgs::msg::Marker`; displays the sparse point cloud of features detected in the latest key frame. Based on the SLAM's `_local_map_to_display`.
+
+### `mesh`
+
+Of type `visualization_msgs::msg::Marker`; displays the current densified terrain mesh as a set of polygons, colored by slope. Based on the SLAM's `_mesh_to_display`.
+
+### `point_cloud`
+
+Of type `sensor_msgs::msg::PointCloud2`; displays the current densified point cloud extracted from the mesh. Based on the SLAM's `_mesh_to_display`.
 
 # Disclaimer
 

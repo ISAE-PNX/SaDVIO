@@ -75,12 +75,13 @@ class SLAMCore {
     bool _is_init         = false; //!< Flag for initialization
     int _successive_fails = 0;     //!< Number of successive failure to trigger reinitialization
 
-    // Public variables for display
-    std::shared_ptr<isae::SLAMParameters> _slam_param;
-    std::shared_ptr<Frame> _frame_to_display;
-    std::shared_ptr<isae::LocalMap> _local_map_to_display;
-    std::shared_ptr<isae::GlobalMap> _global_map_to_display;
-    std::shared_ptr<Mesh3D> _mesh_to_display;
+    // Public variables for display 
+    std::shared_ptr<isae::SLAMParameters> _slam_param;        //!< The parameters the SLAM is currently running with; initialized with the loaded config file (avoid modifying while the SLAM is running)
+    // -- reset the following after retrieval if only interested in new updates --
+    std::shared_ptr<Frame> _frame_to_display;                 //!< The latest frame (transformation) estimate(s)
+    std::shared_ptr<isae::LocalMap> _local_map_to_display;    //!< The latest local map (sparse point cloud) estimate(s)
+    std::shared_ptr<isae::GlobalMap> _global_map_to_display;  //!< The latest global map (sparse point cloud) estimate(s)
+    std::shared_ptr<Mesh3D> _mesh_to_display;                 //!< The latest mesh (dense vertices) estimate(s)
 
     /*!
      * @brief Detect all types of features for a given sensor with bucketting

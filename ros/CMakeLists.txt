@@ -41,6 +41,7 @@ find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(sadvio_msgs REQUIRED)
 
 include_directories(
   ${OpenCV_INCLUDE_DIRS}
@@ -74,7 +75,7 @@ install(
 # Executables generation
 # -------------------------------------------------------------------
 add_executable(vio_ros ./src/main.cpp)
-ament_target_dependencies(vio_ros ament_index_cpp rclcpp sensor_msgs pcl_conversions visualization_msgs tf2_ros tf2_geometry_msgs std_msgs cv_bridge)
+ament_target_dependencies(vio_ros ament_index_cpp rclcpp sensor_msgs pcl_conversions visualization_msgs tf2_ros tf2_geometry_msgs std_msgs cv_bridge sadvio_msgs)
 target_link_libraries(vio_ros ${PROJECT_NAME})
 
 install(TARGETS vio_ros

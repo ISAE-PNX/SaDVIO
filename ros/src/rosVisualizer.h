@@ -19,6 +19,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker.hpp>
+#include <sadvio_msgs/slam_param.hpp>
 
 #include "isaeslam/data/mesh/mesh.h"
 #include "isaeslam/slamCore.h"
@@ -94,6 +95,7 @@ class RosVisualizer : public rclcpp::Node {
         _pub_global_map_lines       = this->create_publisher<visualization_msgs::msg::Marker>("map_global_lines", 1000);
         _pub_marker                 = this->create_publisher<visualization_msgs::msg::Marker>("mesh", 1000);
         _pub_cloud                  = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 1000);
+        _pub_param                  = this->create_publisher<sadvio_msgs::msg::SLAMParam>("param", 1000);
         _tf_broadcaster             = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
         _vo_traj_msg.type    = visualization_msgs::msg::Marker::LINE_STRIP;
@@ -546,6 +548,12 @@ class RosVisualizer : public rclcpp::Node {
         _pub_cloud->publish(*pc2_msg_);
     }
 
+    void publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param) {
+        sadvio_msgs::msg::SLAMParam param_msg;
+        param_msg.dataset_path = _slam_param->dataset_path;
+        _pub_param->publish(param_msg);
+    }
+
     void runVisualizer(std::shared_ptr<isae::SLAMCore> SLAM) {
 
         while (true) {
@@ -566,6 +574,8 @@ class RosVisualizer : public rclcpp::Node {
                 publishMesh(SLAM->_mesh_to_display);
                 SLAM->_mesh_to_display.reset();
             }
+
+            publishParam(SLAM->_slam_param);
 
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }

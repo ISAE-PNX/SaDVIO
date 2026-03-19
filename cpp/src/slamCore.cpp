@@ -462,11 +462,18 @@ void SLAMCore::profiling() {
         if (profiling_path.empty())
             initProfiling();
 
-        // Clean the result file
+        // Clean the poses' result file
         std::ofstream fw_res(profiling_path / "results.csv", std::ofstream::out | std::ofstream::trunc);
         fw_res << "timestamp (ns), nframes, T_wf(00), T_wf(01), T_wf(02), T_wf(03), T_wf(10), T_wf(11), T_wf(12), "
                << "T_wf(13), T_wf(20), T_wf(21), T_wf(22), T_wf(23)\n";
         fw_res.close();
+        
+        // Clean the relative factors' covariance result file
+        std::ofstream fw_cov(profiling_path / "results_cov.csv", std::ofstream::out | std::ofstream::trunc);
+        fw_cov << "timestamp (ns), timestamp previous (ns), "
+               << "cov(00), cov(11), cov(22), cov(33), cov(44), cov(55), "
+               << "parallax, nb_tracks, t(0), t(1), t(3), r(0), r(1), r(2) \n";
+        fw_cov.close();
 
         // std::ofstream fw_res1("log_slam/info_mat.csv", std::ofstream::out | std::ofstream::trunc);
         // fw_res1 << "Im(00), Im(11), Im(22), Im(33), Im(44), Im(55), "
@@ -503,10 +510,29 @@ void SLAMCore::profiling() {
             Eigen::Affine3d T_w_f   = f->getFrame2WorldTransform();
             const Eigen::Matrix3d R = T_w_f.linear();
             Eigen::Vector3d twc     = T_w_f.translation();
-            fw_res << f->getTimestamp() << "," << _nframes << "," << R(0, 0) << "," << R(0, 1) << "," << R(0, 2) << ","
+            fw_res << f->getTimestamp() << "," << f->getTimestamp() << "," << R(0, 0) << "," << R(0, 1) << "," << R(0, 2) << ","
                    << twc.x() << "," << R(1, 0) << "," << R(1, 1) << "," << R(1, 2) << "," << twc.y() << "," << R(2, 0)
                    << "," << R(2, 1) << "," << R(2, 2) << "," << twc.z() << "\n";
             fw_res.close();
+        }
+
+        // For relative frame covariances
+        if (getLastKF()) {
+            Eigen::Affine3d T_f1_f2;
+            Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6);
+            std::shared_ptr<Frame> f = _local_map->getFrames().front();
+            std::shared_ptr<Frame> f_prev = _local_map->getFrames().at(1);
+            _local_map->computeRelativePose(f_prev, f, T_f1_f2, cov);
+            Eigen::Vector3d r = isae::geometry::log_so3(T_f1_f2.rotation());
+            Eigen::Vector3d t = T_f1_f2.translation();
+
+            std::ofstream fw_cov(profiling_path / "results_cov.csv", std::ofstream::out | std::ofstream::app);
+            fw_cov << f->getTimestamp() << "," <<  f_prev->getTimestamp() << "," 
+                   << cov(0, 0) << "," << cov(1, 1) << "," << cov(2, 2) << ","
+                   << cov(3, 3) << "," << cov(4, 4) << "," << cov(5, 5) << ","
+                   << t.x() << "," << t.y() << "," << t.z() << "," 
+                   << r.x() << "," << r.y() << "," << r.z() << "," << "\n";
+            fw_cov.close();
         }
 
         // For timing statistics
