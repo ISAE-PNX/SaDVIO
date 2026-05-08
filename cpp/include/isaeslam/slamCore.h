@@ -75,12 +75,13 @@ class SLAMCore {
     bool _is_init         = false; //!< Flag for initialization
     int _successive_fails = 0;     //!< Number of successive failure to trigger reinitialization
 
-    // Public variables for display
-    std::shared_ptr<isae::SLAMParameters> _slam_param;
-    std::shared_ptr<Frame> _frame_to_display;
-    std::shared_ptr<isae::LocalMap> _local_map_to_display;
-    std::shared_ptr<isae::GlobalMap> _global_map_to_display;
-    std::shared_ptr<Mesh3D> _mesh_to_display;
+    // Public variables for display 
+    std::shared_ptr<isae::SLAMParameters> _slam_param;        //!< The parameters the SLAM is currently running with; initialized with the loaded config file (avoid modifying while the SLAM is running)
+    // -- reset the following after retrieval if only interested in new updates --
+    std::shared_ptr<Frame> _frame_to_display;                 //!< The latest frame (transformation) estimate(s)
+    std::shared_ptr<isae::LocalMap> _local_map_to_display;    //!< The latest local map (sparse point cloud) estimate(s)
+    std::shared_ptr<isae::GlobalMap> _global_map_to_display;  //!< The latest global map (sparse point cloud) estimate(s)
+    std::shared_ptr<Mesh3D> _mesh_to_display;                 //!< The latest mesh (dense vertices) estimate(s)
 
     /*!
      * @brief Detect all types of features for a given sensor with bucketting
@@ -187,6 +188,16 @@ class SLAMCore {
     bool shouldInsertKeyframe(std::shared_ptr<Frame> &f);
     std::shared_ptr<Frame> getLastKF() { return _local_map->getLastFrame(); }
 
+
+    /*!
+     * @brief TODO 
+     */
+    void initProfiling(const std::filesystem::path& p);
+    void initProfiling() {
+        // Create an empty path object to use default initialization
+        initProfiling(std::filesystem::path("log_slam"));
+    }
+
     /*!
      * @brief A function to monitor the SLAM behaviour
      */
@@ -216,6 +227,7 @@ class SLAMCore {
     std::shared_ptr<Frame> _frame_to_optim; //!< For communication between front-end and back-end
 
     // Profiling variables
+    std::filesystem::path profiling_path;
     uint _nframes;
     uint _nkeyframes;
     float _avg_detect_t;

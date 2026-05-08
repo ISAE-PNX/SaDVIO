@@ -1,0 +1,14 @@
+string label_feature
+string detector_label
+int32 number_detected_features
+int32 n_features_per_cell
+string tracker_label
+int32 tracker_height
+int32 tracker_width
+int32 tracker_nlvls_pyramids
+float64 tracker_max_err
+string matcher_label
+float64 max_matching_dist
+int32 matcher_height
+int32 matcher_width
+string lmk_triangulator

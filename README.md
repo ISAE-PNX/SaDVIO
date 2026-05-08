@@ -35,9 +35,9 @@ You can then play a rosbag with the topics specified in the [config](ros/config)
 
 ## Classic install
 
-Go in the cpp folder and build it 
+Go in the `cpp` folder and build it 
 
-```
+```bash
 cd ~/your_ws/src
 git clone https://github.com/ISAE-PNX/SaDVIO.git
 cd SaDVIO/cpp
@@ -47,10 +47,23 @@ cmake ..
 make
 ```
 You can then run this executable, adding the folder of the config files and the folder of your dataset:
-```
+```bash
 ./isaeslam "/ur/path/SaDVIO/ros/config" "/ur/path/V1_01_easy/mav0"
 ``` 
  Your dataset must be at the [EUROC dataset](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) format and you must edit properly the files in the [config folder](ros/config).
+
+To make SaDVIO available as a library, install it
+```bash
+# depending on the install path ${CMAKE_INSTALL_LIBDIR}, sudo may not be required - but make sure that CMake can find it!
+sudo make install
+```
+The default location of the installed library is `/usr/local/lib` (so `sudo` required). 
+```bash
+# the compiled library
+/usr/local/lib/isae_slam/libisae_slam.so
+# config file for cmake
+/usr/local/lib/cmake/isae_slam/isae_slamConfig.cmake
+```
 
 ## Docker install
 
@@ -59,6 +72,43 @@ We have included a docker installation of SaDVIO in the [docker](docker) folder.
 cd SaDVIO/cpp/build/
 ./isaeslam "/root/SaDVIO/ros/config" "/root/V1_01_easy/mav0/"
 ```
+
+# Usage
+
+The ROS2 visualizer (`rosVisualizer.h`) is not only responsible for the visualization but for all ROS2 outputs from SaDVIO.
+The SLAM results are checked once every millisecond and, if there is new information to display, it is published through the following topics.
+The SLAM's displayable values are reset after publishing so that the visualizer only publishes new information (the SLAM maintains its internal values).
+
+## Topics
+
+<p align='center'>
+    <img src="./doc/rosgraph_SaDVIO.png" alt="drawing" width="800"/>
+</p>
+
+### `vo_pose`
+
+Of type `geometry_msgs::msg::PoseStamped`; provides the current estimated pose (rotation + translation in a fixed local frame) from the SLAM's `_frame_to_display`.
+
+### `image_kps`
+
+Of type `sensor_msgs::msg::Image`; displays the latest key frame image with the detected features: Red for tracked features, Blue for untracked features, Green for 'resurrected' features. Based on the SLAM's `_frame_to_display`
+
+
+### `vo_traj`
+
+Of type `visualization_msgs::msg::Marker`; displays the current estimated trajectory of the vehicle (positions only, given in the local world frame). Based on the SLAM's `_local_map_to_display`.
+
+### `map_local_cloud`
+
+Of type `visualization_msgs::msg::Marker`; displays the sparse point cloud of features detected in the latest key frame. Based on the SLAM's `_local_map_to_display`.
+
+### `mesh`
+
+Of type `visualization_msgs::msg::Marker`; displays the current densified terrain mesh as a set of polygons, colored by slope. Based on the SLAM's `_mesh_to_display`.
+
+### `point_cloud`
+
+Of type `sensor_msgs::msg::PointCloud2`; displays the current densified point cloud extracted from the mesh. Based on the SLAM's `_mesh_to_display`.
 
 # Disclaimer
 

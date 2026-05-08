@@ -75,6 +75,8 @@ struct Config {
     int marginalization;         //!< 0 no marginalization, 1 marginalization
     bool sparsification;         //!< 0 no sparsification, 1 sparsification
     std::string pose_estimator;  //!< Type of pose estimator
+    std::string rel_pose_estimator;  //!< Type of relative pose estimator (NFR or ESKF)
+    float eskf_r;                    //!< Measurement covariance R of ESKF (pixels)
     std::string tracker;         //!< Type of tracking (matcher or klt)
     int min_kf_number;           //!< Minimum KF for optimization
     int max_kf_number;           //!< Size maximum of the sliding windown
