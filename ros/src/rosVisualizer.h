@@ -19,7 +19,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker.hpp>
-#include <sadvio_msgs/slam_param.hpp>
+#include <sadvio_msgs/msg/slam_param.hpp>
 
 #include "isaeslam/data/mesh/mesh.h"
 #include "isaeslam/slamCore.h"
@@ -550,7 +550,7 @@ class RosVisualizer : public rclcpp::Node {
 
     void publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param) {
         sadvio_msgs::msg::SLAMParam param_msg;
-        param_msg.dataset_path = _slam_param->dataset_path;
+        param_msg.dataset_path = _slam_param->_config.dataset_path;
         _pub_param->publish(param_msg);
     }
 
@@ -587,6 +587,7 @@ class RosVisualizer : public rclcpp::Node {
         _pub_image_matches_in_frame;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _pub_cloud;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _pub_vo_pose;
+    rclcpp::Publisher<sadvio_msgs::msg::SLAMParam>::SharedPtr _pub_param;
     std::shared_ptr<tf2_ros::TransformBroadcaster> _tf_broadcaster;
     visualization_msgs::msg::Marker _vo_traj_msg;
     visualization_msgs::msg::Marker _points_local, _points_global, _points_local1, _lines_local, _lines_global;
