@@ -28,7 +28,7 @@ class AMap {
     std::deque<std::shared_ptr<Frame>> &getFrames() { return _frames; }
 
     /**
-     *  @brief Get the last frame added to the map.
+     *  @brief Get the last (newest) frame added to the map.
      */
     std::shared_ptr<isae::Frame> getLastFrame() {
         if (_frames.empty())

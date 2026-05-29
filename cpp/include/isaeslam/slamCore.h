@@ -185,7 +185,11 @@ class SLAMCore {
     /*!
      * @brief Determines if the frame in argument is a KF
      */
-    bool shouldInsertKeyframe(std::shared_ptr<Frame> &f);
+    bool shouldInsertKeyframe(std::shared_ptr<Frame> &f);    
+
+    /*!
+     * @brief Obtains the last (i.e. newest) KeyFrame in the pose graph.
+     */
     std::shared_ptr<Frame> getLastKF() { return _local_map->getLastFrame(); }
 
 
