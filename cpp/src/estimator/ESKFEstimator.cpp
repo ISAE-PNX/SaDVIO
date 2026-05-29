@@ -183,7 +183,7 @@ bool isae::ESKFEstimator::estimateTransformBetween(const std::shared_ptr<Frame> 
     dT    = T_cam1_f1.inverse() * T_cam2_cam1.inverse() * T_cam2_f2;
 
     // std::cout << covdT.matrix() << std::endl;
-    std::cout << dT.matrix() << std::endl;
+    // std::cout << dT.matrix() << std::endl;
     return true;
 }
 
