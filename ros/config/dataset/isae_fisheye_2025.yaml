@@ -1,0 +1,74 @@
+# General sensor definitions.
+dataset: isae_fisheye_2025
+ncam: 2
+
+camera_0:
+ topic: cam_0/image_raw
+ # Sensor extrinsics wrt. the body-frame.
+ T_BS:
+   cols: 4
+   rows: 4
+   data: [-0.01802336, -0.0038962, 0.99982997, 0.07092664,
+-0.99983738, 0.00068592, -0.01802082, 0.07527164,
+-0.00061559, -0.99999217, -0.00390793, 0.01298022,
+0., 0., 0., 1.]
+
+ # Camera specific definitions.
+ rate_hz: 20
+ resolution: [1280, 1024]
+ projection_model: double_sphere
+ intrinsics: [-0.11140122529137528, 0.5952678216992895, 443.28149119115665, 443.06455720523354, 650.8357591463872, 531.871241770663] #xi, alpha, fu, fv, cu, cv
+ # intrinsics: [-0.08444945017209797, 0.605969238627714, 229.17400136, 229.1207576,  325.06582259, 265.77924981] # for downsampling
+ distortion_model: None
+ distortion_coefficients: [-0.22182901,  0.17537102,  0.00051886, -0.00139967]
+
+camera_1:
+ topic: cam_1/image_raw
+ # Sensor extrinsics wrt. the body-frame.
+ T_BS:
+   cols: 4
+   rows: 4
+   data: [0.00537169, -0.00282824, 0.99998157, 0.070543,
+-0.99998376, -0.00192106, 0.00536627, -0.05037066,
+0.00190585, -0.99999416, -0.00283851, 0.0130637,
+ 0., 0., 0., 1.]
+
+ # Camera specific definitions.
+ rate_hz: 20
+ resolution: [1280, 1024]
+ projection_model: double_sphere
+ intrinsics: [-0.11057848480905841, 0.5952764907308805, 443.5457534196598, 443.4006953335733, 638.3505533640774, 503.93725126044615] #xi, alpha, fu, fv, cu, cv, 
+ # intrinsics: [-0.06521469001750535, 0.6113320913599786, 233.87862086, 233.88386044 ,316.97413271 ,253.4876587] # for downsampling
+ distortion_model: None
+ distortion_coefficients: [-0.22417122,  0.18345191, -0.00030051,  0.00044505]
+
+imu:
+ # topic: /agilex_isae/imu/data
+ topic: imu/data
+ T_BS:
+   cols: 4
+   rows: 4
+   data: [1.0, 0.0, 0.0, 0.0,
+         0.0, 1.0, 0.0, 0.0,
+         0.0, 0.0, 1.0, 0.0,
+         0.0, 0.0, 0.0, 1.0]
+ rate_hz: 200
+
+ # inertial sensor noise model parameters (static)
+ gyroscope_noise_density: 0.02    # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+ gyroscope_random_walk: 1.9393e-05      # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+ accelerometer_noise_density: 0.2 # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+ accelerometer_random_walk: 3.0000e-1   # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )
+ dt_imu_cam: 0.050
+ 
+lidar:
+ topic: ouster/points
+ # Sensor extrinsics wrt. the body-frame.
+ T_BS:
+   cols: 4
+   rows: 4
+   data: [0.057053620061774, -0.895640831906156, -0.44110297075412624, -0.240385142582134, 
+-0.021793254387352003, 0.44060078063024805, -0.8974384660806379, -0.10720461875300301, 
+0.998133223531138, 0.060815213474707995, 0.005618907692571099, 0.068426818305287,
+0.0, 0.0, 0.0, 1.0]
+

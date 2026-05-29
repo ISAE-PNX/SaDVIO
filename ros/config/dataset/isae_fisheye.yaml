@@ -9,9 +9,9 @@ camera_0:
     cols: 4
     rows: 4
     data: [-0.01611161, -0.00569734, 0.99985397, 0.06685475,
-  -0.99986642, 0.00284297, -0.01609561, 0.07019467,
-  -0.00275085, -0.99997973, -0.00574238, 0.01072864,
-  0., 0., 0., 1.]
+-0.99986642, 0.00284297, -0.01609561, 0.07019467,
+-0.00275085, -0.99997973, -0.00574238, 0.01072864,
+ 0., 0., 0., 1.]
 
   # Camera specific definitions.
   rate_hz: 20
@@ -29,9 +29,9 @@ camera_1:
     cols: 4
     rows: 4
     data: [ 0.00223415, -0.00432549, 0.99998815, 0.06670308,
-  -0.99999708, 0.00091024, 0.00223811, -0.05580203,
-  -0.00091991, -0.99999023, -0.00432344, 0.01067212,
-  0., 0., 0., 1.]
+-0.99999708, 0.00091024, 0.00223811, -0.05580203,
+-0.00091991, -0.99999023, -0.00432344, 0.01067212,
+ 0., 0., 0., 1.]
 
   # Camera specific definitions.
   rate_hz: 20
@@ -44,7 +44,7 @@ camera_1:
 
 imu:
   # topic: /agilex_isae/imu/data
-  topic: /imu/data
+  topic: /imu/data #/imu/data
   T_BS:
     cols: 4
     rows: 4
@@ -55,11 +55,11 @@ imu:
   rate_hz: 200
 
   # inertial sensor noise model parameters (static)
-  gyroscope_noise_density: 1.6968e-04     # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
-  gyroscope_random_walk: 1.9393e-05       # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
-  accelerometer_noise_density: 2.0000e-2  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
-  accelerometer_random_walk: 3.0000e-1   # [ m / s^3 / sqrt(Hz) ]  ( accel bias diffusion )
-  dt_imu_cam: 0.01 # delay of the IMU wrt the cameras in second
+  gyroscope_noise_density: 1.6968e-01    # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+  gyroscope_random_walk: 1.9393e-05      # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+  accelerometer_noise_density: 2.0000  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+  accelerometer_random_walk: 3.0000e-2   # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )
+  dt_imu_cam: 0.005
   
 lidar:
   topic: /ouster/points

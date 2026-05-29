@@ -1,5 +1,5 @@
 # General sensor definitions.
-dataset: isae_fisheye_sky
+dataset: isae_fisheye_sky_seb
 ncam: 2
 
 camera_0:
