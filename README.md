@@ -31,7 +31,7 @@ Then launch the program with:
 ```
 ros2 launch isae_slam_ros isae_slam.xml
 ```
-You can then play a rosbag with the topics specified in the [config](ros/config) files. 
+You can then play a rosbag with the topics specified in the [config](ros/config) files. Remember to `colcon build` the package if adding new config files for your dataset.
 
 ## Classic install
 
