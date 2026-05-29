@@ -94,6 +94,7 @@ bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,
                                    Eigen::MatrixXd &cov) {
     // Check if the local map is not empty
     if (_frames.size() < 2) {
+        std::cout << "Local map is empty! No relative pose. " << "(" << _frames.size() << ")" << std::endl;
         return false;
     }
 
@@ -107,9 +108,11 @@ bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,
             frames_to_add.push_back(frame);
         }
     }
+    std::cout << "Relative frame dt [s]: " << (frame2->getTimestamp() - frame1->getTimestamp())*1e-9 << std::endl;
 
     // If we haven't found at least 2 KF, return false
     if (frames_to_add.size() < 2) {
+        std::cout << "Local map has insufficient KeyFrames! No relative pose. " << "(" << frames_to_add.size() << ")" << std::endl;
         return false;
     }
 
@@ -133,13 +136,36 @@ bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,
         T_f1_fim1 = frame1->getFrame2WorldTransform().inverse() * frames_to_add.at(i)->getFrame2WorldTransform();
         if (cov.rows() != 6 && cov.cols() != 6) {
             cov = Eigen::MatrixXd::Identity(6, 6);
+            std::cout << "Covariance rows and cols do not match: " << cov.rows() << " rows, " << cov.cols() << " cols." << std::endl;
             return false;
         }
         cov = J_f1 * cov * J_f1.transpose() + J_dt * frames_to_add.at(i)->getdTCov() * J_dt.transpose();
+    
+        bool cov_err = false;
+        // debug (check for identity matrix)
+        if (abs(cov.matrix().trace() - 6.) < 0.00001)
+        {
+            std::cout << "Covariance is identity matrix." << std::endl;
+            cov_err = true;
+        }
+        // debug (check for NaN values)
+        if (cov.matrix().hasNaN())
+        {
+            std::cout << "Covariance contains NaN values." << std::endl;
+            cov_err = true;
+        }    
+        if (cov_err)
+        {            
+            std::cout << cov.matrix() << std::endl;
+            std::cout << frames_to_add.at(i)->getdTCov().matrix() << std::endl;
+            std::cout << J_f1.matrix() << std::endl;
+            std::cout << J_dt.matrix() << std::endl;
+        }
     }
 
     if (cov.rows() != 6 && cov.cols() != 6) {
         cov = Eigen::MatrixXd::Identity(6, 6);
+        std::cout << "Covariance rows and cols do not match: " << cov.rows() << " rows, " << cov.cols() << " cols." << std::endl;
         return false;
     }
 

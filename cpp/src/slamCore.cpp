@@ -355,11 +355,17 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
     double avg_parallax  = 0;
     double n_matches     = 0;
     double n_matches_lmk = 0;
+    double n_matches_lmk_initialized = 0;
 
     // Compute parallax
     for (auto tmatch : _matches_in_time_lmk) {
         n_matches += (_matches_in_time[tmatch.first].size() + _matches_in_time_lmk[tmatch.first].size());
         n_matches_lmk += _matches_in_time_lmk[tmatch.first].size();
+        for (auto &ttime : tmatch.second) {
+            // Check if the landmark is initialized
+            if (ttime.first->getLandmark().lock()->isInitialized())                   
+                n_matches_lmk_initialized += 1;
+        }
     }
 
     for (auto tmatch : _matches_in_time) {
@@ -384,23 +390,30 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
 
     // Case when it is already a KF
     if (f->isKeyFrame()) {
+        std::cout << "Found KF: KF already set" << std::endl;
         return true;
     }
 
     // Case when the parallax fall under the parallax noise condition => KF not voted
     if (avg_parallax < _min_movement_parallax) {
+        std::cout << "NO KF: parallax insignificant " <<
+         "(" << avg_parallax << " < " << _min_movement_parallax << ")" << std::endl;
         return false;
     }
 
     // Case when the parallax in degree is over the threshold => KF voted
     if (avg_parallax > _max_movement_parallax) {
         f->setKeyFrame();
+        std::cout << "Found KF: parallax significant " <<
+         "(" << avg_parallax << " > " << _max_movement_parallax << ")" << std::endl;
         return true;
     }
 
     // Case when many landmarks has been lost => KF voted
-    if (n_matches_lmk < _min_lmk_number) {
+    if (n_matches_lmk_initialized < _min_lmk_number) {
         f->setKeyFrame();
+        std::cout << "Found KF: init. landmarks insufficient " <<
+         "(" << n_matches_lmk_initialized << " < " << _min_lmk_number << ")" << std::endl;
         return true;
     }
 
@@ -504,7 +517,7 @@ void SLAMCore::profiling() {
     } else {
 
         // Write in a txt file for evaluation
-        if (getLastKF()) {
+        if (getLastKF()) { // why do you check if the oldest KF exists (deque->back()), then profile the newest (deque->front()) ???
             std::shared_ptr<Frame> f = _local_map->getFrames().front();
             std::ofstream fw_res(profiling_path / "results.csv", std::ofstream::out | std::ofstream::app);
             Eigen::Affine3d T_w_f   = f->getFrame2WorldTransform();
@@ -517,11 +530,21 @@ void SLAMCore::profiling() {
         }
 
         // For relative frame covariances
-        if (getLastKF()) {
+        if (getLastKF() && _local_map->getFrames().size() > 1) {
+            // DEBUG
+            // std::cout << "Front: " << _local_map->getFrames().front()->getTimestamp() << std::endl;
+            // std::cout << "Back: " << _local_map->getFrames().back()->getTimestamp() << std::endl;
+            // for(auto &x : _local_map->getFrames()) {
+            //     std::cout << x->getTimestamp() << std::endl;
+            // } 
+            // for(int i=0; i<_local_map->getFrames().size(); ++i) {
+            //     std::cout << _local_map->getFrames().at(i)->getTimestamp() << std::endl;
+            // }// END DEBUG
+            // std::cout << "Storing relative frame cov. | local map has " << _local_map->getFrames().size() << " elements of " << _local_map->getFrames().max_size() << std::endl;
             Eigen::Affine3d T_f1_f2;
             Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6);
-            std::shared_ptr<Frame> f = _local_map->getFrames().front();
-            std::shared_ptr<Frame> f_prev = _local_map->getFrames().at(1);
+            std::shared_ptr<Frame> f = _local_map->getFrames().back(); // newest
+            std::shared_ptr<Frame> f_prev = _local_map->getFrames().at(_local_map->getFrames().size()-2); // second-to-last (second-newest)
             _local_map->computeRelativePose(f_prev, f, T_f1_f2, cov);
             Eigen::Vector3d r = isae::geometry::log_so3(T_f1_f2.rotation());
             Eigen::Vector3d t = T_f1_f2.translation();
@@ -533,6 +556,7 @@ void SLAMCore::profiling() {
                    << t.x() << "," << t.y() << "," << t.z() << "," 
                    << r.x() << "," << r.y() << "," << r.z() << "," << "\n";
             fw_cov.close();
+            // std::cout << "Storing done ..." << std::endl;
         }
 
         // For timing statistics

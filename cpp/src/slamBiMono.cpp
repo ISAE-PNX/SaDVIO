@@ -160,6 +160,8 @@ bool SLAMBiMono::frontEndStep() {
 
     if (shouldInsertKeyframe(_frame)) {
 
+        std::cout << "Voted KeyFrame" << std::endl;
+
         // Frame is added
         _nkeyframes++;
 
@@ -267,12 +269,14 @@ bool SLAMBiMono::backEndStep() {
             _map_mutex.unlock();
         }
         _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
+        // isae::timer::toc("BackEnd Marginalize");
 
         // Optimize Local Map
         isae::timer::tic();
         _slam_param->getOptimizerBack()->localMapBA(_local_map, _local_map->getFixedFrameNumber());
         _avg_wdw_opt_t = (_avg_wdw_opt_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         profiling();
+        // isae::timer::toc("BackEnd Map");
 
         // Reset frame to optim
         _frame_to_optim = nullptr;
