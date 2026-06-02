@@ -171,6 +171,7 @@ class SLAMCore {
      */
     void initLandmarks(std::shared_ptr<Frame> &f);
     void updateLandmarks(typed_vec_match matches_lmk);
+    void resetLandmarks();
 
     /*!
      * @brief Performs landmark resurection
@@ -206,6 +207,13 @@ class SLAMCore {
      * @brief A function to monitor the SLAM behaviour
      */
     void profiling();
+
+    void dispMAll();
+    void dispMiT();
+    void dispMiTl();
+    void dispMiF();
+    void dispMiFl();
+    void dispM(typed_vec_match matches);
 
   protected:
     std::shared_ptr<Frame> _frame; //!< Current frame

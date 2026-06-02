@@ -76,6 +76,7 @@ void LocalMap::removeEmptyLandmarks() {
 }
 
 void LocalMap::reset() {
+    std::cout << "Resetting Local Map..." << std::endl;
     _localmap_mtx.lock();
     for (auto &frame : _frames) {
         frame->cleanLandmarks();
@@ -86,6 +87,7 @@ void LocalMap::reset() {
         tlmks.second.clear();
     }
     _localmap_mtx.unlock();
+    std::cout << "Local Map Reset!" << std::endl;
 }
 
 bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,

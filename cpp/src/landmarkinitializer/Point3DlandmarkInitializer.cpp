@@ -14,19 +14,26 @@ bool Point3DLandmarkInitializer::initLandmark(std::vector<std::shared_ptr<isae::
     if (features.size() < 2)
         return false;
 
+    // std::cout << "Found features: " << features.size() << std::endl;
     // Get ray and optical centers of cameras in world coordinates
     Eigen::Matrix3d S = Eigen::Matrix3d::Zero();
     Eigen::Vector3d C(0, 0, 0);
     std::vector<Eigen::Vector3d> rays;
 
+    // std::cout << "Iterate over features..." << std::endl;
     for (const std::shared_ptr<AFeature> &f : features) {
 
+        // std::cout << "Get sensor..." << std::endl;
         std::shared_ptr<ImageSensor> cam = f->getSensor();
+        if (!cam)
+            std::cerr << "No sensor associated with feature!" << std::endl;
+        // std::cout << "Get Ray... " << f->getRays().size() << std::endl;
         Eigen::Vector3d ray              = f->getRays().at(0);
 
         Eigen::Vector3d o;
         Eigen::Matrix3d A;
 
+        // std::cout << "Add rays..." << std::endl;
         rays.push_back(ray);
         o = cam->getSensor2WorldTransform().translation();
 
@@ -68,6 +75,7 @@ bool Point3DLandmarkInitializer::initLandmark(std::vector<std::shared_ptr<isae::
     //     return true;
     // }
     
+    // std::cout << "Compute the determinant..." << std::endl;
     // Compute the determinant
     if (std::abs(S.determinant()) < 1e-5) {
         landmark->init(Eigen::Affine3d::Identity(), features);
@@ -92,6 +100,7 @@ bool Point3DLandmarkInitializer::initLandmark(std::vector<std::shared_ptr<isae::
     if (T_cam_lmk.translation()(2) < 0 || T_cam_lmk.translation().norm() > 20)
         return false;
 
+    // std::cout << "Init the new landmark..." << std::endl;
     // Set Landmark state
     landmark->init(T_w_lmk, features);
 

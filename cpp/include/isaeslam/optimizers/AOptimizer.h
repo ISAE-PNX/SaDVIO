@@ -27,8 +27,10 @@ class AOptimizer {
     };
 
     void resetMarginalization() {
+        std::cout << "Resetting Marginalization..." << std::endl;
         _marginalization      = std::make_shared<Marginalization>();
         _marginalization_last = std::make_shared<Marginalization>();
+        std::cout << "Marginalization Reset!" << std::endl;
     };
 
     /*!

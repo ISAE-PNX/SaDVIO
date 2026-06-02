@@ -5,17 +5,25 @@
 namespace isae {
 
 bool SLAMBiMono::init() {
+    std::cout << "Initialize BIMONO..." << std::endl; 
+    if (_successive_fails) {
+        std::cerr << "Re-initialization ... " << _successive_fails << std::endl;
+        // throw std::runtime_error("THROW RE-INIT");
+    }
 
+    std::cout << "Create frame..." << std::endl; 
     // get first frame and set keyframe
     _frame = _slam_param->getDataProvider()->next();
     while (_frame->getSensors().empty()) {
         _frame = _slam_param->getDataProvider()->next();
     }
 
+    std::cout << "Create prior..." << std::endl; 
     // Prior on the first frame, it is set as the origin
     _frame->setWorld2FrameTransform(Eigen::Affine3d::Identity());
     _frame->setPrior(Eigen::Affine3d::Identity(), 100 * Vector6d::Ones());
 
+    std::cout << "Create features..." << std::endl; 
     // detect all features on all sensors
     detectFeatures(_frame->getSensors().at(0));
 
@@ -26,21 +34,26 @@ bool SLAMBiMono::init() {
                   _matches_in_frame_lmk,
                   _frame->getSensors().at(0)->getFeatures());
 
+    std::cout << "Create matches..." << std::endl; 
     // Filter matches in frame
     _matches_in_frame = epipolarFiltering(_frame->getSensors().at(0), _frame->getSensors().at(1), _matches_in_frame);
 
     // init the velocity
     _6d_velocity = 0.00001 * Vector6d::Ones();
 
+    std::cout << "Create landmarks..." << std::endl; 
     // init first landmarks
     initLandmarks(_frame);
+    std::cout << "Optimize landmarks..." << std::endl; 
     _slam_param->getOptimizerFront()->landmarkOptimization(_frame);
 
+    std::cout << "Create mesh..." << std::endl; 
     // Create the 3D mesh
     if (_slam_param->_config.mesh3D) {
         _mesher->addNewKF(_frame);
     }
 
+    std::cout << "Clean..." << std::endl; 
     // Ignore features that were not triangulated
     cleanFeatures(_frame);
     detectFeatures(_frame->getSensors().at(0));
@@ -52,7 +65,9 @@ bool SLAMBiMono::init() {
     _is_init        = true;
     _successive_fails = 0;
     _nkeyframes++;
+    dispMAll();
 
+    std::cout << "Initialized BIMONO!" << std::endl; 
     return true;
 }
 
@@ -60,6 +75,7 @@ bool SLAMBiMono::frontEndStep() {
 
     // Get next frame
     _frame = _slam_param->getDataProvider()->next();
+    std::cout << "## # # # ## NEXT frame ## # # # ##" << std::endl;
 
     // Ignore frames without images
     if (_frame->getSensors().empty())
@@ -104,7 +120,10 @@ bool SLAMBiMono::frontEndStep() {
     isae::timer::tic();
     bool good_it   = predict(_frame);
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
+    // dispMAll();
 
+    // std::cout << "Predict is: " << good_it << std::endl;
+    
     if (good_it) {
         _successive_fails = 0;
 
@@ -221,20 +240,20 @@ bool SLAMBiMono::frontEndStep() {
         _frame->cleanLandmarks();
     }
 
+    // Send the frame to the viewer
+    _frame_to_display = _frame;
+
     // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
     if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
         (_successive_fails > 5)) {
 
         _is_init = false;
         _local_map->reset();
+        resetLandmarks();
         _slam_param->getOptimizerBack()->resetMarginalization();
-
+        std::cout << "Detected 5 or more successive fails: Reset local map (" << _successive_fails << ")" << std::endl;
         return true;
     }
-
-    // Send the frame to the viewer
-    _frame_to_display = _frame;
-
     return true;
 }
 
@@ -255,7 +274,7 @@ bool SLAMBiMono::backEndStep() {
 
         // Marginalization (+ sparsification) of the last frame
         isae::timer::tic();
-        while (_local_map->getMarginalizationFlag()) {
+        while (_local_map->getMarginalizationFlag() && _local_map->getFrames().size() >= 2) {
             if (_slam_param->_config.marginalization == 1)
                 _slam_param->getOptimizerBack()->marginalize(_local_map->getFrames().at(0),
                                                              _local_map->getFrames().at(1),

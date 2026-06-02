@@ -82,6 +82,11 @@ void SLAMCore::cleanFeatures(std::shared_ptr<Frame> &f) {
     }
 }
 
+void SLAMCore::resetLandmarks() {
+    _matches_in_time_lmk.clear();
+    _matches_in_time.clear();
+}
+
 void SLAMCore::updateLandmarks(typed_vec_match matches_lmk) {
 
     // Update all existing landmarks tracked in time
@@ -95,6 +100,7 @@ void SLAMCore::updateLandmarks(typed_vec_match matches_lmk) {
 
 void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
 
+    std::cout << "Initializing landmarks..." << std::endl;
     // Init unitialized landmarks
     for (auto &ttracks_in_time : _matches_in_time_lmk) {
 
@@ -102,22 +108,31 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
         int nb_created = 0;
         for (auto &ttime : ttracks_in_time.second) {
 
+            // std::cout << "Check if LMK is init" << std::endl;
             // Check if the landmark is not initialized
             if (ttime.first->getLandmark().lock()) {
                 if (ttime.first->getLandmark().lock()->isInitialized())
                     continue;
+            } else {
+                // std::cout << "LMK cannot be locked!" << std::endl;
+                // continue;
             }
 
+            // std::cout << "Build feature vector (" << ttime.first->getLandmark().lock()->getFeatures().size() << " ft.)" << std::endl;
             // Build the feature vector
             std::vector<std::shared_ptr<AFeature>> features;
             for (auto feat : ttime.first->getLandmark().lock()->getFeatures()) {
+                // std::cout << "Got feature" << std::endl;
                 features.push_back(feat.lock());
             }
+            // std::cout << "Initialize from features" << std::endl;
             _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(features);
             nb_created++;
+            // std::cout << "Found " << nb_created << " matches" << std::endl;
         }
     }
 
+    std::cout << "Initializing matches..." << std::endl;
     // Init landmarks with tracks in time (+ seek for matches in frame if in stereo)
     for (auto &ttracks_in_time : _matches_in_time) {
 
@@ -135,14 +150,23 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
             // Add a new feature for triangulation if it is also matched in frame (bimono case)
             if (_slam_param->getDataProvider()->getNCam() == 2) {
                 for (auto &tframe : _matches_in_frame[ttracks_in_time.first]) {
-                    if (tframe.first->getLandmark().lock())
+                    if (tframe.first->getLandmark().lock()) {
                         continue;
+                    } else {
+                        // std::cout << "LMK cannot be locked!" << std::endl;
+                        // continue;
+                    }
 
                     if (ttime.second == tframe.first) {
+                        if (tframe.first->getPoints().size() == 0 || tframe.second->getPoints().size() == 0) {
+                            std::cout << "Feature contains no points" << std::endl;
+                        }
                         // Check if the feat has enough parallax
                         if ((tframe.first->getPoints().at(0) - tframe.second->getPoints().at(0)).norm() < 4) {
                             break;
                         } else {
+                            // std::cout << "Large parallax detected: " << (tframe.first->getPoints().at(0) - tframe.second->getPoints().at(0)).norm() << std::endl;
+                            // std::cout << "Large parallax detected" << std::endl;
                             to_init.push_back(tframe);
                             feats.push_back(tframe.second);
                             break;
@@ -151,10 +175,13 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
                 }
             }
 
+            // std::cout << "Initialize LMK from new features" << std::endl;
             _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(feats);
+            // std::cout << "Found " << nb_created << " matches" << std::endl;
         }
     }
 
+    std::cout << "Initializing frame matches..." << std::endl;
     // Initializing landmarks with L / R matches only in the worst case
     // Need to initialize the remaining N landmarks with in frame matches
     for (auto &ttracks_in_frame : _matches_in_frame) {
@@ -173,9 +200,11 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
             if (tframe.first->getLandmark().lock())
                 continue;
             else {
+                // std::cout << "LMK cannot be locked!" << std::endl;
                 to_init.push_back(tframe);
                 nb_created++;
             }
+            // std::cout << "Found " << nb_created << " matches" << std::endl;
         }
         _slam_param->getLandmarksInitializer()[ttracks_in_frame.first]->initFromMatches(to_init);
     }
@@ -308,6 +337,8 @@ uint SLAMCore::matchFeatures(std::shared_ptr<ImageSensor> &sensor0,
                                                                   matches_lmk[typed_matcher.first],
                                                                   typed_matcher.second.matcher_width,
                                                                   typed_matcher.second.matcher_height);
+        // std::cout << "SLAMCORE DEBUG = match type : " << typed_matcher.first << std::endl;
+        // std::cout << "SLAMCORE DEBUG = total matches : " << nb_matches << std::endl;
     }
 
     return nb_matches;
@@ -471,9 +502,11 @@ void SLAMCore::initProfiling(const std::filesystem::path& p) {
 }
 
 void SLAMCore::profiling() {
+    std::cout << "Profiling ..." << std::endl;
     if (!_is_init) {
         if (profiling_path.empty())
             initProfiling();
+        std::cout << "Set up profiling ..." << std::endl;
 
         // Clean the poses' result file
         std::ofstream fw_res(profiling_path / "results.csv", std::ofstream::out | std::ofstream::trunc);
@@ -487,6 +520,8 @@ void SLAMCore::profiling() {
                << "cov(00), cov(11), cov(22), cov(33), cov(44), cov(55), "
                << "parallax, nb_tracks, t(0), t(1), t(3), r(0), r(1), r(2) \n";
         fw_cov.close();
+
+        std::cout << "Profiler set up!" << std::endl;
 
         // std::ofstream fw_res1("log_slam/info_mat.csv", std::ofstream::out | std::ofstream::trunc);
         // fw_res1 << "Im(00), Im(11), Im(22), Im(33), Im(44), Im(55), "
@@ -518,6 +553,7 @@ void SLAMCore::profiling() {
 
         // Write in a txt file for evaluation
         if (getLastKF()) { // why do you check if the oldest KF exists (deque->back()), then profile the newest (deque->front()) ???
+            // std::cout << "Profiling KF" << std::endl;
             std::shared_ptr<Frame> f = _local_map->getFrames().front();
             std::ofstream fw_res(profiling_path / "results.csv", std::ofstream::out | std::ofstream::app);
             Eigen::Affine3d T_w_f   = f->getFrame2WorldTransform();
@@ -527,6 +563,8 @@ void SLAMCore::profiling() {
                    << twc.x() << "," << R(1, 0) << "," << R(1, 1) << "," << R(1, 2) << "," << twc.y() << "," << R(2, 0)
                    << "," << R(2, 1) << "," << R(2, 2) << "," << twc.z() << "\n";
             fw_res.close();
+        } else {
+            // std::cout << "KF / Map empty" << std::endl;
         }
 
         // For relative frame covariances
@@ -540,7 +578,7 @@ void SLAMCore::profiling() {
             // for(int i=0; i<_local_map->getFrames().size(); ++i) {
             //     std::cout << _local_map->getFrames().at(i)->getTimestamp() << std::endl;
             // }// END DEBUG
-            // std::cout << "Storing relative frame cov. | local map has " << _local_map->getFrames().size() << " elements of " << _local_map->getFrames().max_size() << std::endl;
+            std::cout << "Storing relative frame cov. | local map has " << _local_map->getFrames().size() << " elements" << std::endl;
             Eigen::Affine3d T_f1_f2;
             Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6);
             std::shared_ptr<Frame> f = _local_map->getFrames().back(); // newest
@@ -557,6 +595,8 @@ void SLAMCore::profiling() {
                    << r.x() << "," << r.y() << "," << r.z() << "," << "\n";
             fw_cov.close();
             // std::cout << "Storing done ..." << std::endl;
+        } else {
+            // std::cout << "No relative frames available" << std::endl;
         }
 
         // For timing statistics
@@ -622,6 +662,40 @@ void SLAMCore::profiling() {
     fw << "Front end dt: " << frontend_dt << "\n";
     float backend_dt = _avg_wdw_opt_t + _avg_marg_t;
     fw << "Back end dt: " << backend_dt << "\n";
+}
+
+void SLAMCore::dispMAll() {
+    dispMiT();
+    dispMiTl();
+    dispMiF();
+    dispMiFl();
+}
+
+void SLAMCore::dispMiT() {
+    std::cout << "--- Matches in Time" << std::endl;
+    dispM(_matches_in_time);
+}
+
+void SLAMCore::dispMiTl() {
+    std::cout << "--- Matches in Time (landmarks)" << std::endl;
+    dispM(_matches_in_time_lmk);
+}
+
+void SLAMCore::dispMiF() {
+    std::cout << "--- Matches in Frame" << std::endl;
+    dispM(_matches_in_frame);
+}
+
+void SLAMCore::dispMiFl() {
+    std::cout << "--- Matches in Frame (landmarks)" << std::endl;
+    dispM(_matches_in_frame_lmk);
+}
+
+void SLAMCore::dispM(typed_vec_match matches) {    
+    std::cout << "---- Map has elements: " << matches.size() << std::endl;
+    for (auto tmatch : matches) {
+        std::cout << "      " << tmatch.first << " : " << tmatch.second.size() << " feature pairs" << std::endl;
+    }
 }
 
 void SLAMCore::runFrontEnd() {

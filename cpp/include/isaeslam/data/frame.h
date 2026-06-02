@@ -5,6 +5,8 @@
 #include "isaeslam/data/landmarks/ALandmark.h"
 #include "isaeslam/typedefs.h"
 
+// #include <iostream>
+
 namespace isae {
 
 class ImageSensor;
@@ -49,6 +51,7 @@ class Frame : public std::enable_shared_from_this<Frame> {
      * @brief free all the pointers related to sensors
      */
     void cleanSensors() {
+        // std::cout << "Cleaning Sensors" << " (Frame " << _id << "/" << _frame_count << ")" << std::endl;
         _imu = nullptr;
         _sensors.clear();
     }

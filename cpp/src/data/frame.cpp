@@ -84,6 +84,7 @@ uint Frame::getInMapLandmarksNumber() const {
 
 void Frame::cleanLandmarks() {
 
+    // std::cout << "Cleaning Landmarks" << " (Frame " << _id << "/" << _frame_count << ")" << std::endl;
     // We have to unlink the deleted features and the remaining landmarks
 
     // For all sensors

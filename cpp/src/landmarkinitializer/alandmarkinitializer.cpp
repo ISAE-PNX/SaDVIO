@@ -15,10 +15,12 @@ uint ALandmarkInitializer::initFromMatches(vec_match matches) {
 uint ALandmarkInitializer::initFromFeatures(std::vector<std::shared_ptr<AFeature>> feats) {
     std::shared_ptr<ALandmark> l;
 
+    // std::cout << "Check for landmark" << std::endl;
     // Check if there is already a landmark
     for (auto feat : feats) {
         if (feat->getLandmark().lock()) {
             l = feat->getLandmark().lock();
+            // std::cout << "Found landmark!" << std::endl;
             break;
         }
     }
@@ -27,6 +29,7 @@ uint ALandmarkInitializer::initFromFeatures(std::vector<std::shared_ptr<AFeature
     if (l) {
 
         if (l->isInitialized()) {
+            // std::cout << "Found landmark is already INIT!" << std::endl;
             for (auto feat : feats) {
                 feat->linkLandmark(l);
                 feat->getSensor()->getFrame()->addLandmark(l);
@@ -35,10 +38,12 @@ uint ALandmarkInitializer::initFromFeatures(std::vector<std::shared_ptr<AFeature
         }
     }
 
+    // std::cout << "Try to init new landmark..." << std::endl;
     // Perform multiview triangulation if there is no initialized lmk
     if (!initLandmark(feats, l))
         return 0;
 
+    // std::cout << "Associate new landmark to Frame..." << std::endl;
     // Associate this landmark to its frames (check if already added first)
     std::vector<std::shared_ptr<Frame>> addedframes;
     for (auto feat : feats) {
@@ -48,8 +53,10 @@ uint ALandmarkInitializer::initFromFeatures(std::vector<std::shared_ptr<AFeature
         }
     }
 
-    if (l)
+    if (l) {
+        // std::cout << "Landmark exists now!" << std::endl;
         return 1;
+    }
     return 0;
 }
 
