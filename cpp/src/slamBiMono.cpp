@@ -97,6 +97,8 @@ bool SLAMBiMono::frontEndStep() {
 
     // Match or track the features in time
     uint nmatches_in_time;
+    std::cout << "SLAMCORE DEBUG: track w.r.t. prior KF"
+                    << " [frontEndStep]" << std::endl;
     isae::timer::tic();
     if (_slam_param->_config.tracker == "klt") {
         nmatches_in_time = trackFeatures(getLastKF()->getSensors().at(0),
@@ -111,6 +113,7 @@ bool SLAMBiMono::frontEndStep() {
                                          _matches_in_time_lmk,
                                          getLastKF()->getSensors().at(0)->getFeatures());
     }
+    dispMiTl();
 
     _avg_matches_time = (_avg_matches_time * (_nframes - 1) + nmatches_in_time) / _nframes;
     _avg_match_time_t = (_avg_match_time_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
@@ -120,7 +123,8 @@ bool SLAMBiMono::frontEndStep() {
     isae::timer::tic();
     bool good_it   = predict(_frame);
     _avg_predict_t = (_avg_predict_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
-    // dispMAll();
+    dispMAll();
+    // std::cout << "MiT-L:   " << _matches_in_time_lmk["pointxd"].size() << std::endl;
 
     // std::cout << "Predict is: " << good_it << std::endl;
     
@@ -136,6 +140,9 @@ bool SLAMBiMono::frontEndStep() {
         _removed_feat = (_removed_feat * (_nframes - 1) + removed_matching_nb) / _nframes;
         _avg_filter_t = (_avg_filter_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
+        dispMiTl();
+        std::cout << "MiT:   " << _matches_in_time["pointxd"].size() << std::endl;
+
         // Remove Outliers in case of klt
         if (_slam_param->_config.tracker == "klt") {
             isae::timer::tic();
@@ -143,11 +150,15 @@ bool SLAMBiMono::frontEndStep() {
             _avg_clean_t = (_avg_clean_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
         }
 
+        dispMiTl();
+
         // Update tracked landmarks
         updateLandmarks(_matches_in_time_lmk);
 
         // Single Frame ESKF Update
         isae::timer::tic();
+
+        dispMiTl();
 
         Eigen::MatrixXd cov;
         Eigen::Affine3d T_last_curr, T_w_f;
@@ -202,12 +213,14 @@ bool SLAMBiMono::frontEndStep() {
 
         // Track features in frame
         isae::timer::tic();
+        std::cout << "SLAMCORE DEBUG: match w.r.t. 2nd cam"
+                    << " [frontEndStep]" << std::endl;
         uint nmatches_in_frame = trackFeatures(_frame->getSensors().at(0),
                                                _frame->getSensors().at(1),
                                                _matches_in_frame,
                                                _matches_in_frame_lmk,
                                                _frame->getSensors().at(0)->getFeatures());
-
+        dispMAll();
         // Epipolar Filtering for matches in frame
         _matches_in_frame =
             epipolarFiltering(_frame->getSensors().at(0), _frame->getSensors().at(1), _matches_in_frame);

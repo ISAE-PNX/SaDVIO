@@ -203,21 +203,29 @@ class RosVisualizer : public rclcpp::Node {
         cv::Mat img_2_pub;
         cv::cvtColor(frame->getSensors().at(0)->getRawData(), img_2_pub, CV_GRAY2RGB);
 
+        int nftrn = 0;
+        int nresr = 0;
+        int ninit = 0;
         for (const auto &feat : frame->getSensors().at(0)->getFeatures()["pointxd"]) {
             cv::Scalar col;
 
             if (feat->getLandmark().lock() == nullptr) {
-                col = cv::Scalar(0, 0, 255);
+                col = cv::Scalar(0, 0, 255);    // feature was detected, but has no landmark assigned
+                nftrn++;
             } else if (feat->getLandmark().lock()->isResurected()) {
-                col = cv::Scalar(0, 255, 0);
+                col = cv::Scalar(0, 255, 0);    // feature was detected _AND_ resurrected (discontinuous tracking)
+                nresr++;
             } else {
-                if (feat->getLandmark().lock()->isInitialized())
-                    col = cv::Scalar(255, 0, 0);
+                if (feat->getLandmark().lock()->isInitialized()) {
+                    col = cv::Scalar(255, 0, 0); // feature has landmark assigned
+                    ninit++;
+                }
             }
             Eigen::Vector2d pt2d = feat->getPoints().at(0);
 
             cv::circle(img_2_pub, cv::Point(pt2d.x(), pt2d.y()), 4, col, -1);
         }
+        std::cout << nftrn << "/" << nresr << "/" << ninit << std::endl;
 
         for (const auto &feat : frame->getSensors().at(0)->getFeatures()["linexd"]) {
             cv::Scalar col;

@@ -89,12 +89,14 @@ void SLAMCore::resetLandmarks() {
 
 void SLAMCore::updateLandmarks(typed_vec_match matches_lmk) {
 
+    int nb_init = 0;
     // Update all existing landmarks tracked in time
     for (auto &tmatches_lmk : matches_lmk) {
         // Init all tracked feature with existing landmarks
         for (auto &match_lmk : tmatches_lmk.second) {
-            _slam_param->getLandmarksInitializer()[tmatches_lmk.first]->initFromMatch(match_lmk);
+            nb_init += _slam_param->getLandmarksInitializer()[tmatches_lmk.first]->initFromMatch(match_lmk);
         }
+        std::cout << "Kept landmarks: " << nb_init << " (" << tmatches_lmk.second.size() << ")" << std::endl;
     }
 }
 
@@ -128,8 +130,8 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
             // std::cout << "Initialize from features" << std::endl;
             _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(features);
             nb_created++;
-            // std::cout << "Found " << nb_created << " matches" << std::endl;
         }
+        std::cout << "Found " << nb_created << " landmark matches" << std::endl;
     }
 
     std::cout << "Initializing matches..." << std::endl;
@@ -177,8 +179,8 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
 
             // std::cout << "Initialize LMK from new features" << std::endl;
             _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(feats);
-            // std::cout << "Found " << nb_created << " matches" << std::endl;
         }
+        std::cout << "Found " << nb_created << " time matches" << std::endl;
     }
 
     std::cout << "Initializing frame matches..." << std::endl;
@@ -204,9 +206,9 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
                 to_init.push_back(tframe);
                 nb_created++;
             }
-            // std::cout << "Found " << nb_created << " matches" << std::endl;
         }
         _slam_param->getLandmarksInitializer()[ttracks_in_frame.first]->initFromMatches(to_init);
+        std::cout << "Found " << nb_created << " frame matches" << std::endl;
     }
 }
 
@@ -222,6 +224,8 @@ typed_vec_features SLAMCore::detectFeatures(std::shared_ptr<ImageSensor> &sensor
             sensor->getRawData(), sensor->getMask(), sensor->getFeatures()[typed_detector.first]);
         sensor->addFeatures(typed_detector.first, features);
         new_features[typed_detector.first] = features;
+        std::cout << "SLAMCORE DEBUG: Found features     " << new_features[typed_detector.first].size() 
+                    << " [detectFeatures]" << std::endl;
     }
 
     return new_features;
@@ -252,7 +256,12 @@ typed_vec_match SLAMCore::epipolarFiltering(std::shared_ptr<ImageSensor> &cam0,
         else
             m.second->setOutlier();
     }
-
+                                    
+    std::cout   << "SLAMCORE DEBUG: Valid matches      " << valid_matches["pointxd"].size()
+                << " (" << matches["pointxd"].size() << ")" 
+                << " [epipolarFiltering]"
+                << std::endl;
+                
     return valid_matches;
 }
 
@@ -375,6 +384,21 @@ uint SLAMCore::trackFeatures(std::shared_ptr<ImageSensor> &sensor0,
 
         // std::cout << "SLAMCORE DEBUG = track type : " << typed_tracker.first << std::endl;
         // std::cout << "SLAMCORE DEBUG = total tracks : " << nb_tracks << std::endl;
+        int nlkm_init = 0;
+        for (auto lmk : matches_lmk[typed_tracker.first]) {
+            if (lmk.first->getLandmark().lock()->isInitialized()) {
+                nlkm_init++;
+            }
+        }
+        std::cout   << "SLAMCORE DEBUG: tracks total       " << nb_tracks
+                    << "   (" << nb_tracks-matches_lmk[typed_tracker.first].size() << " w/o lmk.)"
+                    << " [trackFeatures]"
+                    << std::endl;
+        std::cout 
+                    << "SLAMCORE DEBUG: tracks w/ landmark " << matches_lmk[typed_tracker.first].size() 
+                    << "   (" << nlkm_init << " init)"
+                    << " [trackFeatures]"
+                    << std::endl;
     }
 
     return nb_tracks;
@@ -458,12 +482,15 @@ bool SLAMCore::predict(std::shared_ptr<Frame> &f) {
     Eigen::Affine3d T_last_curr = (getLastKF()->getWorld2FrameTransform() * f->getFrame2WorldTransform());
     Eigen::Affine3d T_const     = T_last_curr;
 
+    // dispMiTl();
+
     // False if the prediction failed and constant velocity applies
     if (!_slam_param->getPoseEstimator()->estimateTransformBetween(
             getLastKF(), f, _matches_in_time_lmk["pointxd"], T_last_curr, covdT)) {
         std::cerr << "Predict fails, PnP failed" << std::endl;
         return false;
     } else {
+        // dispMiTl();
 
         // Check if the pose is valid 
         if (T_const.translation().norm() > 0.1) {
@@ -692,7 +719,7 @@ void SLAMCore::dispMiFl() {
 }
 
 void SLAMCore::dispM(typed_vec_match matches) {    
-    std::cout << "---- Map has elements: " << matches.size() << std::endl;
+    // std::cout << "---- Map has elements: " << matches.size() << std::endl;
     for (auto tmatch : matches) {
         std::cout << "      " << tmatch.first << " : " << tmatch.second.size() << " feature pairs" << std::endl;
     }

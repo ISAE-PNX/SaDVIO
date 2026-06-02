@@ -1,6 +1,8 @@
 #include "isaeslam/estimator/PnPPoseEstimator.h"
 #include "utilities/geometry.h"
 
+#include <iostream>
+
 namespace isae {
 
 bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &frame1,
@@ -97,6 +99,12 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
         inliers_matches.push_back(init_matches.at(inliers.at<int>(i)));
     }
 
+    std::cout   << "SLAMCORE DEBUG: Kept features      " << inliers_matches.size() + noninit_matches.size()
+                << " (" << inliers_matches.size()
+                << ":" << noninit_matches.size() << " init)" 
+                << " (" << matches.size() << " input)" 
+                << " [estimateTransformBetween]"
+                << std::endl;
     // Update the matches passed as reference
     matches = inliers_matches;
     for (auto &m : noninit_matches) {
@@ -151,11 +159,19 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
         for (auto m : tmatch.second)
             matches.push_back(m);
     }
+
+    int nmatches = matches.size();
     if (estimateTransformBetween(frame1, frame2, matches, dT, covdT)) {
         typed_vec_match inliers_typed_matches;
         for (auto &m : matches)
             inliers_typed_matches[m.first->getFeatureLabel()].push_back(m);
         typed_matches = inliers_typed_matches;
+
+        std::cout   << "SLAMCORE DEBUG: Kept features      " << inliers_typed_matches["pointxd"].size()
+                    << " (" << nmatches << ")" 
+                    << " [estimateTransformBetween (typed)]"
+                    << std::endl;
+
         return true;
     }
     return false;
