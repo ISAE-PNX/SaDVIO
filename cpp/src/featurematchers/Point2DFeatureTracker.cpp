@@ -94,7 +94,15 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
     std::vector<std::shared_ptr<AFeature>> features2;
     features2.reserve(features_to_track.size());
 
+
+    uint debug_n = 0;
+    uint debug_noutliers = 0;
+    uint debug_nfeats = 0;
+    uint debug_ntracks = 0;
+    uint debug_ntrlmk = 0;
+
     for (size_t i = 0; i < status.size(); i++) {
+        debug_n++;
         // Invalid match if one of the OF failed or KLT error is too high
         if (status.at(i) == 0 || err.at(i) > max_err || statusb.at(i) == 0 || errb.at(i) > max_err) {
             continue;
@@ -112,12 +120,19 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
 
         std::shared_ptr<AFeature> new_feat = std::make_shared<Point2D>(poses2d);
         features2.push_back(new_feat);
+        debug_nfeats++;
 
         if (features_to_track.at(i)->getLandmark().lock()) {
-            if (!features_to_track.at(i)->getLandmark().lock()->isOutlier())
+            if (!features_to_track.at(i)->getLandmark().lock()->isOutlier()) {
                 tracks_with_ldmk.push_back({features_to_track.at(i), new_feat});
-        } else
+                debug_ntrlmk++;
+            } else {
+                debug_noutliers++;
+            }
+        } else {
             tracks.push_back({features_to_track.at(i), new_feat});
+            debug_ntracks++;
+        }
     }
 
     // Compute descriptors for new tracked features
@@ -134,6 +149,15 @@ uint Point2DFeatureTracker::track(std::shared_ptr<isae::ImageSensor> &sensor1,
 
     // add tracked features to sensor 2
     sensor2->addFeatures("pointxd", features2);
+
+    std::cout   << "SLAMCORE DEBUG: ft/tr/lmk/out/tot  "
+                << debug_nfeats << "/"
+                << debug_ntracks << "/"
+                << debug_ntrlmk << "/"
+                << debug_noutliers << "/"
+                << debug_n 
+                << " [Point2DFeatureTracker::track]"
+                << std::endl;
 
     return tracks.size() + tracks_with_ldmk.size();
 }

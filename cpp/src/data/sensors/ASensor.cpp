@@ -43,4 +43,24 @@ std::vector<std::shared_ptr<AFeature>> &ImageSensor::getFeatures(std::string fea
     return _features[feature_label];
 }
 
+uint ImageSensor::countInitFeatures() {           
+    uint nb_init_total = 0;     
+    uint nb_resu_total = 0;     
+    for (auto &fts : this->getFeatures()) {
+        for (auto &ft : fts.second) {
+            if (ft->getLandmark().lock()) {
+                if (ft->getLandmark().lock()->isInitialized())
+                    nb_init_total++;
+                if (ft->getLandmark().lock()->isResurected())
+                    nb_resu_total++;
+            }
+        }
+    }
+    std::cout   << "Image has " << nb_init_total << " init features (of" 
+                << this->getFeatures()["pointxd"].size() << ") "  
+                << "[" << nb_resu_total << " resurrected]"
+                << std::endl;
+    return nb_init_total;
+}
+
 } // namespace isae

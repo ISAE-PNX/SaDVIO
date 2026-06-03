@@ -11,6 +11,8 @@
 #include "isaeslam/typedefs.h"
 #include "utilities/imgProcessing.h"
 
+#include <iostream>
+
 namespace isae {
 
 class Frame;
@@ -168,6 +170,9 @@ class ImageSensor : public ASensor, public std::enable_shared_from_this<ImageSen
         std::lock_guard<std::mutex> lock(_cam_mtx);
         return _features;
     }
+
+
+    uint countInitFeatures();
 
     /*!
     * @brief Clear all features of a specific type

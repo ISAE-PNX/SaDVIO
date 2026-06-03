@@ -45,23 +45,30 @@ void SLAMCore::outlierRemoval() {
     // Remove outliers from the current kf after tracking / matching
     isae::typed_vec_features clean_features;
 
+    uint n_outliers = 0;
+    uint n_outliers_lmk = 0;
     for (auto tf : _frame->getSensors().at(0)->getFeatures()) {
 
         for (auto m : _matches_in_time[tf.first]) {
             if (!m.second->isOutlier()) {
                 clean_features[tf.first].push_back(m.second);
+            } else {                
+                n_outliers++;
             }
         }
 
         for (auto m : _matches_in_time_lmk[tf.first]) {
             if (!m.second->isOutlier()) {
                 clean_features[tf.first].push_back(m.second);
+            } else {                
+                n_outliers_lmk++;
             }
         }
 
         _frame->getSensors().at(0)->purgeFeatures(tf.first);
         _frame->getSensors().at(0)->addFeatures(tf.first, clean_features[tf.first]);
     }
+    std::cout << "SLAMCORE DEBUG: New Outliers (feat/lmk)  " << n_outliers << "/" << n_outliers_lmk << std::endl;
 }
 
 void SLAMCore::cleanFeatures(std::shared_ptr<Frame> &f) {
@@ -103,18 +110,26 @@ void SLAMCore::updateLandmarks(typed_vec_match matches_lmk) {
 void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
 
     std::cout << "Initializing landmarks..." << std::endl;
+    dispMiTl();
+    uint nb_created_total = 0;
+    
+    f->getSensors().at(0)->countInitFeatures();
     // Init unitialized landmarks
     for (auto &ttracks_in_time : _matches_in_time_lmk) {
 
         // Init all tracked feature in frame
-        int nb_created = 0;
+        int nb_attempted = 0;
+        uint nb_created = 0;
+        uint nb_init = 0;
+        uint nb_skipped = 0;
         for (auto &ttime : ttracks_in_time.second) {
 
-            // std::cout << "Check if LMK is init" << std::endl;
             // Check if the landmark is not initialized
             if (ttime.first->getLandmark().lock()) {
-                if (ttime.first->getLandmark().lock()->isInitialized())
+                if (ttime.first->getLandmark().lock()->isInitialized()) {
+                    nb_skipped++;
                     continue;
+                }
             } else {
                 // std::cout << "LMK cannot be locked!" << std::endl;
                 // continue;
@@ -128,38 +143,57 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
                 features.push_back(feat.lock());
             }
             // std::cout << "Initialize from features" << std::endl;
-            _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(features);
-            nb_created++;
+            nb_created += _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(features);
+            nb_attempted++;
+
+            if (ttime.first->getLandmark().lock())
+                if (ttime.first->getLandmark().lock()->isInitialized())
+                    nb_init++;
         }
-        std::cout << "Found " << nb_created << " landmark matches" << std::endl;
+        std::cout   << "Found " << nb_init << "/" << nb_created 
+                    << " (" << nb_attempted << ") landmark matches. " 
+                    << nb_skipped << " skipped. "
+                    << ttracks_in_time.second.size() << " total."
+                    << std::endl;
+        nb_created_total += nb_created;
     }
+    f->getSensors().at(0)->countInitFeatures();
 
     std::cout << "Initializing matches..." << std::endl;
+    dispMiT();
+    dispMiF();
     // Init landmarks with tracks in time (+ seek for matches in frame if in stereo)
     for (auto &ttracks_in_time : _matches_in_time) {
 
         // Init all tracked feature with track in frame
-        vec_match to_init;
-        int nb_created = 0;
+        vec_match to_init; // this seems to be unused here
+        int nb_attempted = 0;
+        uint nb_created = 0;
+        uint nb_init = 0;
+        uint nb_skipped = 0;
         for (auto &ttime : ttracks_in_time.second) {
             std::vector<std::shared_ptr<AFeature>> feats;
 
             to_init.push_back(ttime);
             feats.push_back(ttime.first);
             feats.push_back(ttime.second);
-            nb_created++;
+            nb_attempted++;
 
             // Add a new feature for triangulation if it is also matched in frame (bimono case)
             if (_slam_param->getDataProvider()->getNCam() == 2) {
                 for (auto &tframe : _matches_in_frame[ttracks_in_time.first]) {
                     if (tframe.first->getLandmark().lock()) {
-                        continue;
+                        nb_skipped++;
+                        continue; // 1st cam's feature already has landmark assigned
                     } else {
                         // std::cout << "LMK cannot be locked!" << std::endl;
                         // continue;
                     }
-
-                    if (ttime.second == tframe.first) {
+                    
+                    // if second-in-time (i.e. current image used for tracking over time)
+                    // is first-in-frame (i.e. principal camera, e.g. cam_0 / right camera)
+                    // --> as long as camera order / use is not changed over time, this should be true
+                    if (ttime.second == tframe.first) { 
                         if (tframe.first->getPoints().size() == 0 || tframe.second->getPoints().size() == 0) {
                             std::cout << "Feature contains no points" << std::endl;
                         }
@@ -178,38 +212,67 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
             }
 
             // std::cout << "Initialize LMK from new features" << std::endl;
-            _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(feats);
+            nb_created += _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(feats);
+            
+            if (ttime.second->getLandmark().lock())
+                if (ttime.second->getLandmark().lock()->isInitialized())
+                    nb_init++;
         }
-        std::cout << "Found " << nb_created << " time matches" << std::endl;
+        std::cout   << "Found " << nb_init << "/" << nb_created 
+                    << " (" << nb_attempted << ") time matches. " 
+                    << nb_skipped << " skipped. "
+                    << ttracks_in_time.second.size() << " total."
+                    << std::endl;
+        nb_created_total += nb_created;
     }
+    f->getSensors().at(0)->countInitFeatures();
 
     std::cout << "Initializing frame matches..." << std::endl;
+    dispMiF();
     // Initializing landmarks with L / R matches only in the worst case
     // Need to initialize the remaining N landmarks with in frame matches
     for (auto &ttracks_in_frame : _matches_in_frame) {
 
         // Init all tracked feature in frame
         vec_match to_init;
-        int nb_created = 0;
+        int nb_attempted = 0;
+        uint nb_skipped = 0;
+        uint nb_init = 0;
         for (auto &tframe : ttracks_in_frame.second) {
 
             // Check if the feat has enough parallax
             if ((tframe.first->getPoints().at(0) - tframe.second->getPoints().at(0)).norm() < 4) {
+                // nb_skipped++;
                 continue;
             }
 
             // If this frame match has already been used before (should be associated to a ldmk) continue
-            if (tframe.first->getLandmark().lock())
+            if (tframe.first->getLandmark().lock()) {
+                nb_skipped++;
                 continue;
-            else {
+            } else {
                 // std::cout << "LMK cannot be locked!" << std::endl;
                 to_init.push_back(tframe);
-                nb_created++;
+                nb_attempted++;
             }
         }
-        _slam_param->getLandmarksInitializer()[ttracks_in_frame.first]->initFromMatches(to_init);
-        std::cout << "Found " << nb_created << " frame matches" << std::endl;
-    }
+        uint nb_created = _slam_param->getLandmarksInitializer()[ttracks_in_frame.first]->initFromMatches(to_init);
+        
+        for (auto &tframe : ttracks_in_frame.second) {
+            if (tframe.second->getLandmark().lock())
+                if (tframe.second->getLandmark().lock()->isInitialized())
+                    nb_init++;
+        }
+
+        std::cout   << "Found "  << nb_init << "/" << nb_created 
+                    <<" (" << nb_attempted << ") frame matches. "
+                    << nb_skipped << " skipped. "
+                    << ttracks_in_frame.second.size() << " total."
+                    << std::endl;
+        nb_created_total += nb_created;
+    }        
+    f->getSensors().at(0)->countInitFeatures();
+    std::cout << "Created " << nb_created_total << "new landmarks" << std::endl;
 }
 
 typed_vec_features SLAMCore::detectFeatures(std::shared_ptr<ImageSensor> &sensor) {
@@ -362,9 +425,17 @@ uint SLAMCore::trackFeatures(std::shared_ptr<ImageSensor> &sensor0,
     uint nb_tracks = 0;
     for (const auto &typed_tracker : _slam_param->getFeatureTrackers()) {
 
+        std::cout   << "SLAMCORE DEBUG: predict features   " << features_to_track[typed_tracker.first].size()
+                    << " [trackFeatures]"
+                    << std::endl;
+
         // Build features_init vector
         std::vector<std::shared_ptr<AFeature>> features_init;
         predictFeature(features_to_track[typed_tracker.first], sensor1, features_init, matches[typed_tracker.first]);
+
+        std::cout   << "SLAMCORE DEBUG: predicted...       " << features_init.size()
+                    << " [trackFeatures]"
+                    << std::endl;
 
         // Clear matches typed vec for update
         matches[typed_tracker.first].clear();
@@ -382,6 +453,7 @@ uint SLAMCore::trackFeatures(std::shared_ptr<ImageSensor> &sensor0,
                                                                  typed_tracker.second.tracker_max_err,
                                                                  true);
 
+        // DEBUG BEGIN
         // std::cout << "SLAMCORE DEBUG = track type : " << typed_tracker.first << std::endl;
         // std::cout << "SLAMCORE DEBUG = total tracks : " << nb_tracks << std::endl;
         int nlkm_init = 0;
@@ -399,6 +471,7 @@ uint SLAMCore::trackFeatures(std::shared_ptr<ImageSensor> &sensor0,
                     << "   (" << nlkm_init << " init)"
                     << " [trackFeatures]"
                     << std::endl;
+        // DEBUG END
     }
 
     return nb_tracks;

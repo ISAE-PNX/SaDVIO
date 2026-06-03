@@ -97,6 +97,7 @@ bool SLAMBiMono::frontEndStep() {
 
     // Match or track the features in time
     uint nmatches_in_time;
+    std::cout << "SLAMCORE DEBUG: Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
     std::cout << "SLAMCORE DEBUG: track w.r.t. prior KF"
                     << " [frontEndStep]" << std::endl;
     isae::timer::tic();
@@ -114,6 +115,7 @@ bool SLAMBiMono::frontEndStep() {
                                          getLastKF()->getSensors().at(0)->getFeatures());
     }
     dispMiTl();
+    std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
 
     _avg_matches_time = (_avg_matches_time * (_nframes - 1) + nmatches_in_time) / _nframes;
     _avg_match_time_t = (_avg_match_time_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
@@ -140,8 +142,7 @@ bool SLAMBiMono::frontEndStep() {
         _removed_feat = (_removed_feat * (_nframes - 1) + removed_matching_nb) / _nframes;
         _avg_filter_t = (_avg_filter_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
 
-        dispMiTl();
-        std::cout << "MiT:   " << _matches_in_time["pointxd"].size() << std::endl;
+        dispMiT();
 
         // Remove Outliers in case of klt
         if (_slam_param->_config.tracker == "klt") {
@@ -149,8 +150,6 @@ bool SLAMBiMono::frontEndStep() {
             outlierRemoval();
             _avg_clean_t = (_avg_clean_t * (_nframes - 1) + isae::timer::silentToc()) / _nframes;
         }
-
-        dispMiTl();
 
         // Update tracked landmarks
         updateLandmarks(_matches_in_time_lmk);
@@ -195,6 +194,7 @@ bool SLAMBiMono::frontEndStep() {
         // Frame is added
         _nkeyframes++;
 
+        std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
         // Repopulate in the case of klt tracking
         typed_vec_features new_features;
         if (_slam_param->_config.tracker == "klt") {
@@ -202,11 +202,14 @@ bool SLAMBiMono::frontEndStep() {
             new_features  = detectFeatures(_frame->getSensors().at(0));
             _avg_detect_t = (_avg_detect_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         }
-
+        std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
         // Recover Map Landmark
         isae::timer::tic();
         _map_mutex.lock();
         uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
+        
+        std::cout << "SLAMCORE DEBUG: Resurrected lmks   " << resu << std::endl;
+
         _map_mutex.unlock();
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         _avg_resur_lmk   = (_avg_lmk_resur_t * (_nkeyframes - 1) + resu) / _nkeyframes;
@@ -221,6 +224,9 @@ bool SLAMBiMono::frontEndStep() {
                                                _matches_in_frame_lmk,
                                                _frame->getSensors().at(0)->getFeatures());
         dispMAll();
+         std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
+         std::cout << "Features in img1: " << _frame->getSensors().at(1)->getFeatures()["pointxd"].size() << std::endl;
+
         // Epipolar Filtering for matches in frame
         _matches_in_frame =
             epipolarFiltering(_frame->getSensors().at(0), _frame->getSensors().at(1), _matches_in_frame);
@@ -247,12 +253,14 @@ bool SLAMBiMono::frontEndStep() {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         _frame_to_optim = _frame;
+         std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
 
     } else {
         // If no KF is voted, the frame is discarded and the landmarks are cleaned
         _frame->cleanLandmarks();
     }
 
+    dispMAll();
     // Send the frame to the viewer
     _frame_to_display = _frame;
 

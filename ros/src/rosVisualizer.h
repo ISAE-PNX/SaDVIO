@@ -206,6 +206,7 @@ class RosVisualizer : public rclcpp::Node {
         int nftrn = 0;
         int nresr = 0;
         int ninit = 0;
+        int nlmkninit = 0;
         for (const auto &feat : frame->getSensors().at(0)->getFeatures()["pointxd"]) {
             cv::Scalar col;
 
@@ -219,13 +220,16 @@ class RosVisualizer : public rclcpp::Node {
                 if (feat->getLandmark().lock()->isInitialized()) {
                     col = cv::Scalar(255, 0, 0); // feature has landmark assigned
                     ninit++;
+                } else {
+                    nlmkninit++;
                 }
             }
             Eigen::Vector2d pt2d = feat->getPoints().at(0);
 
             cv::circle(img_2_pub, cv::Point(pt2d.x(), pt2d.y()), 4, col, -1);
         }
-        std::cout << nftrn << "/" << nresr << "/" << ninit << std::endl;
+        std::cout   << "kps: " << nftrn << "/" << nresr << "/" << ninit << "/" << nlmkninit
+                    << " (" << nftrn+nresr+ninit+nlmkninit << ")" << std::endl;
 
         for (const auto &feat : frame->getSensors().at(0)->getFeatures()["linexd"]) {
             cv::Scalar col;
