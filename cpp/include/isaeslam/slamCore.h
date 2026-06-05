@@ -83,6 +83,9 @@ class SLAMCore {
     std::shared_ptr<isae::GlobalMap> _global_map_to_display;  //!< The latest global map (sparse point cloud) estimate(s)
     std::shared_ptr<Mesh3D> _mesh_to_display;                 //!< The latest mesh (dense vertices) estimate(s)
 
+    std::shared_ptr<FeatureEvolution> _feature_evolution;     //!< Information concerning how many features are created/tracked/destroyed/resurrected at each stage
+
+
     /*!
      * @brief Detect all types of features for a given sensor with bucketting
      */

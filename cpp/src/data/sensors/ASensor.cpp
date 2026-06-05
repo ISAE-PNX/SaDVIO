@@ -56,10 +56,10 @@ uint ImageSensor::countInitFeatures() {
             }
         }
     }
-    std::cout   << "Image has " << nb_init_total << " init features (of" 
-                << this->getFeatures()["pointxd"].size() << ") "  
-                << "[" << nb_resu_total << " resurrected]"
-                << std::endl;
+    // std::cout   << "Image has " << nb_init_total << " init features (of" 
+    //             << this->getFeatures()["pointxd"].size() << ") "  
+    //             << "[" << nb_resu_total << " resurrected]"
+    //             << std::endl;
     return nb_init_total;
 }
 

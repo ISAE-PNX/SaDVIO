@@ -110,7 +110,7 @@ bool LocalMap::computeRelativePose(std::shared_ptr<isae::Frame> &frame1,
             frames_to_add.push_back(frame);
         }
     }
-    std::cout << "Relative frame dt [s]: " << (frame2->getTimestamp() - frame1->getTimestamp())*1e-9 << std::endl;
+    // std::cout << "Relative frame dt [s]: " << (frame2->getTimestamp() - frame1->getTimestamp())*1e-9 << std::endl;
 
     // If we haven't found at least 2 KF, return false
     if (frames_to_add.size() < 2) {

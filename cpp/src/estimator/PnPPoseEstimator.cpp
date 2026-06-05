@@ -99,12 +99,12 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
         inliers_matches.push_back(init_matches.at(inliers.at<int>(i)));
     }
 
-    std::cout   << "SLAMCORE DEBUG: Kept features      " << inliers_matches.size() + noninit_matches.size()
-                << " (" << inliers_matches.size()
-                << ":" << noninit_matches.size() << " init)" 
-                << " (" << matches.size() << " input)" 
-                << " [estimateTransformBetween]"
-                << std::endl;
+    // std::cout   << "SLAMCORE DEBUG: Kept features      " << inliers_matches.size() + noninit_matches.size()
+    //             << " (" << inliers_matches.size()
+    //             << ":" << noninit_matches.size() << " init)" 
+    //             << " (" << matches.size() << " input)" 
+    //             << " [estimateTransformBetween]"
+    //             << std::endl;
     // Update the matches passed as reference
     matches = inliers_matches;
     for (auto &m : noninit_matches) {

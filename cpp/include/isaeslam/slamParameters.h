@@ -91,6 +91,52 @@ struct Config {
     std::vector<FeatureStruct> features_handled; //!< types of features the slam will work on separated with commas (,)
 };
 
+struct FeatureEvolution {
+    unsigned long long _timestamp;      //!< Timestamp of the frame in nanoseconds
+    uint _nframes;
+    uint provided_by_prior_frame;       //!< Number of features detected in preceding frame's image
+    uint tracked_in_new_frame;          //!< Number of features re-detected in new frame's image
+        // NOTE: provided_by_prior_frame = found_in_new_frame + (features not detected again)
+    uint tracked_lmk;                   //!< Number of features already associated to a landmark
+    uint tracked_lmk_init;              //!< Subset of features associated to an INITIALIZED landmark
+        // LET: tracked_lmk_noninit = (features whose landmark is not declared init.)
+        // NOTE: tracked_lmk = tracked_lmk_init + tracked_lmk_noninit
+    uint tracked_no_lmk;                //!< Number of features not yet associated to a landmark
+        // LET: outliers = (features declared as outliers in prior step)
+        // NOTE: tracked_in_new_frame = tracked_lmk + tracked_no_lmk + outliers
+    uint used_matches;                  //!< Number of feature pairs actually used for the frame-to-frame pose estimate
+        // LET: ransac_rejections = (feature pairs rejected by RANSAC / APoseEstimator)
+        // NOTE: tracked_lmk_init = used_matches + ransac_rejections
+    uint matches_in_time_lmk;           //!< Total number of matches in time, associated with a landmark (init or not), after pose estimation
+        // NOTE: matches_in_time_lmk = used_matches + tracked_lmk_noninit
+    uint matches_in_time_lmk_new_init;  //!< Number of non-initialized landmarks newly initialized
+        // LET: matches_in_time_lmk_failed_init = (Features attempted to init unsuccessfully)
+        // NOTE: tracked_lmk_noninit = matches_in_time_lmk_new_init + matches_in_time_lmk_failed_init
+    uint matches_in_time;               //!< Number of filtered features not yet associated to a landmark
+        // LET: EPIPOLAR_matches_in_time = (features rejected by epipolar filtering)
+        // NOTE: found_tracks_no_lmk = matches_in_time + EPIPOLAR_matches_in_time
+    uint matches_in_time_new_lmk;       //!< Number of features --shared between frames-- that were assigned a new, initialized landmark
+    uint found_in_new_frame;            //!< Number of entirely new features detected in the new frame
+    uint feat_provided_by_primarycam;   //!< Total number of features in the primary camera (typically cam0)
+        // NOTE: feat_provided_by_primarycam = matches_in_time_lmk + matches_in_time + found_in_new_frame
+    uint tracked_in_secondarycam;       //!< Number of features re-detected in 2nd camera (if stereo)
+    uint tracked_in_secondarycam_lmk;   //!< Subset of re-detected features already associated to a landmark
+    uint tracked_in_secondarycam_no_lmk;//!< Subset of re-detected features not yet associated to a landmark
+        // NOTE: tracked_in_secondarycam = tracked_in_secondarycam_lmk + tracked_in_secondarycam_no_lmk;
+    uint matches_in_frame;              //!< [tracked_in_secondarycam_no_lmk] after epipolar filtering
+    uint matches_in_frame_lmk;          //!< [tracked_in_secondarycam_lmk] after epipolar filtering
+    uint matches_in_frame_new_lmk;      //!< Number of features --shared within the frame-- that were assigned a new, initialized landmark
+    uint ft_resur_new;                  //!< Number of new resurrected landmarks
+        // LET: total_lmk_created = (all new landmarks / newly initialized landmarks in this frame)
+        // NOTE: total_lmk_created = matches_in_frame_new_lmk + matches_in_time_new_lmk + matches_in_time_lmk_new_init
+        // LET: ft_with_lmk = (Total number of features in primary camera, associated to an initialized landmark)
+        // NOTE: ft_with_lmk = ft_resur_new + total_lmk_created
+    uint ft_resur_total;                //!< Total number of features in current frame associated to any resurrected landmark
+    uint ft_lmk_init_total;             //!< Total number of features in current frame associated to an initialized, non-resurrected landmark
+    uint ft_lmk_noninit_total;          //!< Total number of features in current frame associated to a non-initialized, non-resurrected landmark
+    uint ft_no_lmk_total;               //!< Total number of features in current frame not (yet) associated to any landmark
+};
+
 /*!
  * @brief A class that gathers most of the algorithmic blocks of the SLAM system that can be setup in the config file
  *
