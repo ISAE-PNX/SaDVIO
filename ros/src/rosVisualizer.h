@@ -10,6 +10,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -96,6 +97,7 @@ class RosVisualizer : public rclcpp::Node {
         _pub_marker                 = this->create_publisher<visualization_msgs::msg::Marker>("mesh", 1000);
         _pub_cloud                  = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 1000);
         _pub_param                  = this->create_publisher<sadvio_msgs::msg::SLAMParam>("param", 1000);
+        _pub_tf_rel                 = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("tf_rel", 1000);
         _tf_broadcaster             = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
         _vo_traj_msg.type    = visualization_msgs::msg::Marker::LINE_STRIP;
@@ -563,7 +565,20 @@ class RosVisualizer : public rclcpp::Node {
     void publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param) {
         sadvio_msgs::msg::SLAMParam param_msg;
         param_msg.dataset_path = _slam_param->_config.dataset_path;
-        _pub_param->publish(param_msg);
+        _pub_param->publish(param_msg); ;s,rhy ;
+
+        // TODO 
+    }
+
+    void publishRelativeTF(const std::shared_ptr<isae::LocalMap> map) {
+        
+        std::shared_ptr<Frame> f = map->getFrames().back(); // newest
+        std::shared_ptr<Frame> f_prev = map->getFrames().at(map->getFrames().size()-2); // second-to-last (second-newest)
+
+        map->computeRelativePose(f_prev, f, T_f1_f2, cov);
+            Eigen::Vector3d r = isae::geometry::log_so3(T_f1_f2.rotation());
+            Eigen::Vector3d t = T_f1_f2.translation();
+
     }
 
     void runVisualizer(std::shared_ptr<isae::SLAMCore> SLAM) {
