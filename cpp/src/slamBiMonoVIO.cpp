@@ -533,6 +533,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
 
         _is_init = false;
         _local_map->reset();
+        resetLandmarks();
         _slam_param->getOptimizerBack()->resetMarginalization();
 
         return true;

@@ -302,6 +302,8 @@ bool SLAMMonoVIO::step_init() {
 
         _is_init = false;
         _local_map->reset();
+        resetLandmarks();
+        _slam_param->getOptimizerBack()->resetMarginalization();
 
         return false;
     }
