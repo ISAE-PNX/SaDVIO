@@ -3,7 +3,7 @@
 #################################################################################
 
 ## dataset_id in {kitti, eth, gazebo_fisheye, gazebo_pinhole, oivio, isae}
-dataset_id : "isae_fisheye"
+dataset_id : "isae_fisheye_2025"
 
 ## slam mode in {mono, bimono, nofov, monovio, bimonovio}
 slam_mode : "bimono"
