@@ -7,10 +7,10 @@ Panels:
         - /Global Options1
         - /Status1
         - /Grid1
-        - /Pose1
         - /Map1
+        - /Image_kps1
       Splitter Ratio: 0.5
-    Tree Height: 716
+    Tree Height: 243
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -22,6 +22,7 @@ Panels:
   - Class: rviz_common/Views
     Expanded:
       - /Current View1
+      - /ThirdPersonFollower1
     Name: Views
     Splitter Ratio: 0.5
   - Class: rviz_common/Time
@@ -49,20 +50,6 @@ Visualization Manager:
       Plane: XY
       Plane Cell Count: 1000
       Reference Frame: <Fixed Frame>
-      Value: true
-    - Class: rviz_default_plugins/Image
-      Enabled: true
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: Image
-      Normalize Range: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /image_kps
       Value: true
     - Alpha: 1
       Axes Length: 0.5
@@ -159,9 +146,23 @@ Visualization Manager:
         Value: /RTQuadtree_occupancyGrid_updates
       Use Timestamp: false
       Value: false
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: /Image_kps
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /image_kps
+      Value: true
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 225; 225; 225
     Fixed Frame: world
     Frame Rate: 30
   Name: root
@@ -204,28 +205,50 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/Orbit
-      Distance: 66.36494445800781
+      Class: rviz_default_plugins/ThirdPersonFollower
+      Distance: 7.251681804656982
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.4705414772033691
-        Y: -4.027614593505859
-        Z: -1.240175485610962
+        X: -0.06226062774658203
+        Y: 0.14157769083976746
+        Z: -1.4747722148895264
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
-      Target Frame: world
-      Value: Orbit (rviz)
-      Yaw: 3.2304461002349854
-    Saved: ~
+      Pitch: -0.0002030208706855774
+      Target Frame: robot
+      Value: ThirdPersonFollower (rviz_default_plugins)
+      Yaw: 3.1414999961853027
+    Saved:
+      - Class: rviz_default_plugins/ThirdPersonFollower
+        Distance: 7.251681804656982
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.05999999865889549
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Focal Point:
+          X: -0.06226062774658203
+          Y: 0.14157769083976746
+          Z: -1.4747722148895264
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05000000074505806
+        Invert Z Axis: false
+        Name: ThirdPersonFollower
+        Near Clip Distance: 0.009999999776482582
+        Pitch: -0.0002030208706855774
+        Target Frame: robot
+        Value: ThirdPersonFollower (rviz_default_plugins)
+        Yaw: 3.1414999961853027
 Window Geometry:
+  Image_kps:
+    collapsed: false
   Displays:
     collapsed: false
   Height: 1007
