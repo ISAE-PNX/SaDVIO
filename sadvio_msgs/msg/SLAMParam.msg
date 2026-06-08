@@ -18,8 +18,8 @@ float32 downsampling          # !< Float to reduce the size of the image (0,5 = 
 int32 marginalization         # !< 0 no marginalization, 1 marginalization
 bool sparsification         # !< 0 no sparsification, 1 sparsification
 string pose_estimator  # !< Type of pose estimator
-string rel_pose_estimator  # !< Type of relative pose estimator (NFR or ESKF)
-float32 eskf_r                    # !< Measurement covariance R of ESKF (pixels)
+string rel_pose_estimator  # !< Type of relative pose estimator (NFR or ESKF) [UNUSED]
+float32 eskf_r                    # !< Measurement covariance R of ESKF (pixels) [UNUSED]
 string tracker         # !< Type of tracking (matcher or klt)
 int32 min_kf_number           # !< Minimum KF for optimization
 int32 max_kf_number           # !< Size maximum of the sliding windown

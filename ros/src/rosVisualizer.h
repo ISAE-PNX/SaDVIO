@@ -220,7 +220,17 @@ class RosVisualizer : public rclcpp::Node {
                 nresr++;
             } else {
                 if (feat->getLandmark().lock()->isInitialized()) {
-                    col = cv::Scalar(255, 0, 0); // feature has landmark assigned
+                    if (feat->getLandmark().lock()->isOutlier()) {
+                        col = cv::Scalar(137, 255, 255); // feature has initialized feature - but was detected as outlier
+                    } else {
+                        if (feat->getLandmark().lock()->getFeatures().size() == 2) {
+                            col = cv::Scalar(255, 255, 0); // feature has landmark assigned -- landmark is linked to only 2 feature
+                        } else if (feat->getLandmark().lock()->getFeatures().size() == 3) {
+                            col = cv::Scalar(255, 0, 255); // feature has landmark assigned -- landmark is linked to only 3 feature
+                        } else {
+                            col = cv::Scalar(255, 0, 0); // feature has landmark assigned
+                        }
+                    }
                     ninit++;
                 } else {
                     nlmkninit++;
@@ -512,7 +522,7 @@ class RosVisualizer : public rclcpp::Node {
         _mesh_line_list.points.clear();
         _mesh_line_list.colors.clear();
 
-        _mesh_line_list.header.frame_id = "world";
+        _mesh_line_list.header.frame_id = "relative";
         _mesh_line_list.header.stamp    = rclcpp::Node::now();
 
         for (auto &polygon : mesh->getPolygonVector()) {
@@ -562,38 +572,122 @@ class RosVisualizer : public rclcpp::Node {
         _pub_cloud->publish(*pc2_msg_);
     }
 
-    void publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param) {
+    sadvio_msgs::msg::SLAMParam fillParamMsg(std::shared_ptr<isae::SLAMParameters> _slam_param) {
         sadvio_msgs::msg::SLAMParam param_msg;
-        param_msg.dataset_path = _slam_param->_config.dataset_path;
-        _pub_param->publish(param_msg); ;s,rhy ;
+        param_msg.dataset_path      = _slam_param->_config.dataset_path;
+        param_msg.dataset_id        = _slam_param->_config.dataset_id;
+        param_msg.slam_mode         = _slam_param->_config.slam_mode;
+        param_msg.multithreading    = _slam_param->_config.multithreading;
+        param_msg.enable_visu       = _slam_param->_config.enable_visu;
+        param_msg.optimizer         = _slam_param->_config.optimizer;
+        param_msg.contrast_enhancer = _slam_param->_config.contrast_enhancer;
+        param_msg.clahe_clip        = _slam_param->_config.clahe_clip;
+        param_msg.downsampling      = _slam_param->_config.downsampling;
+        param_msg.marginalization   = _slam_param->_config.marginalization;
+        param_msg.sparsification    = _slam_param->_config.sparsification;
+        param_msg.pose_estimator    = _slam_param->_config.pose_estimator;
+        param_msg.rel_pose_estimator = _slam_param->_config.rel_pose_estimator;
+        param_msg.eskf_r            = _slam_param->_config.eskf_r;
+        param_msg.tracker           = _slam_param->_config.tracker;
+        param_msg.min_kf_number     = _slam_param->_config.min_kf_number;
+        param_msg.max_kf_number     = _slam_param->_config.max_kf_number;
+        param_msg.fixed_frame_number = _slam_param->_config.fixed_frame_number;
+        param_msg.min_lmk_number    = _slam_param->_config.min_lmk_number;
+        param_msg.min_movement_parallax = _slam_param->_config.min_movement_parallax;
+        param_msg.max_movement_parallax = _slam_param->_config.max_movement_parallax;
+        param_msg.mesh3d            = _slam_param->_config.mesh3D;
+        param_msg.zncc_tsh          = _slam_param->_config.ZNCC_tsh;
+        param_msg.max_length_tsh    = _slam_param->_config.max_length_tsh;
 
-        // TODO 
+        for (auto ft : _slam_param->_config.features_handled) {
+            sadvio_msgs::msg::SLAMFeatures feature_hndl_msg;
+            feature_hndl_msg.label_feature          = ft.label_feature;
+            feature_hndl_msg.detector_label         = ft.detector_label;
+            feature_hndl_msg.number_detected_features = ft.number_detected_features;
+            feature_hndl_msg.n_features_per_cell    = ft.n_features_per_cell;
+            feature_hndl_msg.tracker_label          = ft.tracker_label;
+            feature_hndl_msg.tracker_height         = ft.tracker_height;
+            feature_hndl_msg.tracker_width          = ft.tracker_width;
+            feature_hndl_msg.tracker_nlvls_pyramids = ft.tracker_nlvls_pyramids;
+            feature_hndl_msg.tracker_max_err        = ft.tracker_max_err;
+            feature_hndl_msg.matcher_label          = ft.matcher_label;
+            feature_hndl_msg.max_matching_dist      = ft.max_matching_dist;
+            feature_hndl_msg.matcher_height         = ft.matcher_height;
+            feature_hndl_msg.matcher_width          = ft.matcher_width;
+            feature_hndl_msg.lmk_triangulator       = ft.lmk_triangulator;
+            param_msg.features_handled.push_back(feature_hndl_msg);
+        }
+        return param_msg;
+    }
+
+    void publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param) {
+        sadvio_msgs::msg::SLAMParam param_msg = fillParamMsg(_slam_param);
+        _pub_param->publish(param_msg);
+    }
+    
+    uint publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param, const std::shared_ptr<isae::Frame> frame) {
+        sadvio_msgs::msg::SLAMParam param_msg = fillParamMsg(_slam_param);
+        unsigned long long ts = frame->getTimestamp();
+        param_msg.header.stamp.sec = ts/1000000000u;
+        param_msg.header.stamp.nanosec = ts % 1000000000u;
+        _pub_param->publish(param_msg);
+        return frame->_frame_count;
     }
 
     void publishRelativeTF(const std::shared_ptr<isae::LocalMap> map) {
         
-        std::shared_ptr<Frame> f = map->getFrames().back(); // newest
-        std::shared_ptr<Frame> f_prev = map->getFrames().at(map->getFrames().size()-2); // second-to-last (second-newest)
+        if (map->getFrames().size() > 1) {
+            std::shared_ptr<isae::Frame> f = map->getFrames().back(); // newest
+            std::shared_ptr<isae::Frame> f_prev = map->getFrames().at(map->getFrames().size()-2); // second-to-last (second-newest)
+            
+            Eigen::Affine3d T_f1_f2;
+            Eigen::MatrixXd cov = Eigen::MatrixXd::Identity(6, 6);
 
-        map->computeRelativePose(f_prev, f, T_f1_f2, cov);
+            map->computeRelativePose(f_prev, f, T_f1_f2, cov);
             Eigen::Vector3d r = isae::geometry::log_so3(T_f1_f2.rotation());
             Eigen::Vector3d t = T_f1_f2.translation();
 
+            unsigned long long ts = f->getTimestamp();
+            _pose_rel_tf.header.stamp.sec = ts/1000000000u;
+            _pose_rel_tf.header.stamp.nanosec = ts % 1000000000u;
+            _pose_rel_tf.header.frame_id = "relative";
+            _pose_rel_tf.pose.pose.position.x = t.x();
+            _pose_rel_tf.pose.pose.position.y = t.y();
+            _pose_rel_tf.pose.pose.position.z = t.z();
+
+            Eigen::Quaterniond q = Eigen::Quaterniond(T_f1_f2.rotation());
+            _pose_rel_tf.pose.pose.orientation.x = q.x();
+            _pose_rel_tf.pose.pose.orientation.y = q.y();
+            _pose_rel_tf.pose.pose.orientation.z = q.z();
+            _pose_rel_tf.pose.pose.orientation.w = q.w();
+
+            std::array<double, 36UL> cov_pub;
+            Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>> C(cov_pub.data());
+            C = cov;
+            _pose_rel_tf.pose.covariance = cov_pub;
+            _pub_tf_rel->publish(_pose_rel_tf);
+        }
     }
 
     void runVisualizer(std::shared_ptr<isae::SLAMCore> SLAM) {
 
+        uint old_frame_count = 0;
         while (true) {
 
             if (SLAM->_frame_to_display) {
                 publishImage(SLAM->_frame_to_display);
                 publishFrame(SLAM->_frame_to_display);
+
+                if (SLAM->_frame_to_display->_frame_count - old_frame_count > 10)
+                    old_frame_count = publishParam(SLAM->_slam_param, SLAM->_frame_to_display);
+
                 SLAM->_frame_to_display.reset();
             }
 
             if (SLAM->_local_map_to_display) {
                 publishLocalMap(SLAM->_local_map_to_display);
                 publishLocalMapCloud(SLAM->_local_map_to_display);
+                publishRelativeTF(SLAM->_local_map_to_display);
                 SLAM->_local_map_to_display.reset();
             }
 
@@ -601,8 +695,6 @@ class RosVisualizer : public rclcpp::Node {
                 publishMesh(SLAM->_mesh_to_display);
                 SLAM->_mesh_to_display.reset();
             }
-
-            publishParam(SLAM->_slam_param);
 
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
@@ -615,10 +707,14 @@ class RosVisualizer : public rclcpp::Node {
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _pub_cloud;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _pub_vo_pose;
     rclcpp::Publisher<sadvio_msgs::msg::SLAMParam>::SharedPtr _pub_param;
+    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr _pub_tf_rel;
     std::shared_ptr<tf2_ros::TransformBroadcaster> _tf_broadcaster;
+
     visualization_msgs::msg::Marker _vo_traj_msg;
     visualization_msgs::msg::Marker _points_local, _points_global, _points_local1, _lines_local, _lines_global;
     visualization_msgs::msg::Marker _mesh_line_list;
+    
+    geometry_msgs::msg::PoseWithCovarianceStamped _pose_rel_tf;
 };
 
 // } // namespace isae
