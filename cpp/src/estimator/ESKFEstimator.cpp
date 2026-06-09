@@ -103,8 +103,8 @@ bool isae::ESKFEstimator::estimateTransformBetween(const std::shared_ptr<Frame> 
             p2d_vector.push_back(Eigen::Vector2d(ray_cam2.x() / ray_cam2.z(), ray_cam2.y() / ray_cam2.z()));
         }
     }
-    std::cout << "ESKF can use " << init_matches.size() << " initialized matches of " 
-        << matches.size() << " matches." << std::endl;
+    // std::cout << "ESKF can use " << init_matches.size() << " initialized matches of " 
+    //     << matches.size() << " matches." << std::endl;
 
     Eigen::Matrix3d intrinsic     = Eigen::Matrix3d::Identity();
     Eigen::Matrix2d R             = 0.1 * Eigen::Matrix2d::Identity();

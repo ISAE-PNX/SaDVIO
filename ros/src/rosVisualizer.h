@@ -84,20 +84,20 @@ class RosVisualizer : public rclcpp::Node {
     RosVisualizer() : Node("slam_publisher") {
         std::cout << "\n Creation of ROS vizualizer" << std::endl;
 
-        _pub_image_matches_in_time  = this->create_publisher<sensor_msgs::msg::Image>("image_matches_in_time", 1000);
-        _pub_image_matches_in_frame = this->create_publisher<sensor_msgs::msg::Image>("image_matches_in_frame", 1000);
-        _pub_image_kps              = this->create_publisher<sensor_msgs::msg::Image>("image_kps", 1000);
-        _pub_vo_traj                = this->create_publisher<visualization_msgs::msg::Marker>("vo_traj", 1000);
-        _pub_vo_pose                = this->create_publisher<geometry_msgs::msg::PoseStamped>("vo_pose", 1000);
-        _pub_local_map_cloud        = this->create_publisher<visualization_msgs::msg::Marker>("map_local_cloud", 1000);
-        _pub_local_map_cloud1       = this->create_publisher<visualization_msgs::msg::Marker>("map_local_cloud1", 1000);
-        _pub_global_map_cloud       = this->create_publisher<visualization_msgs::msg::Marker>("map_global_cloud", 1000);
-        _pub_local_map_lines        = this->create_publisher<visualization_msgs::msg::Marker>("map_local_lines", 1000);
-        _pub_global_map_lines       = this->create_publisher<visualization_msgs::msg::Marker>("map_global_lines", 1000);
-        _pub_marker                 = this->create_publisher<visualization_msgs::msg::Marker>("mesh", 1000);
-        _pub_cloud                  = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 1000);
-        _pub_param                  = this->create_publisher<sadvio_msgs::msg::SLAMParam>("param", 1000);
-        _pub_tf_rel                 = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("tf_rel", 1000);
+        _pub_image_matches_in_time  = this->create_publisher<sensor_msgs::msg::Image>("image_matches_in_time", 1);
+        _pub_image_matches_in_frame = this->create_publisher<sensor_msgs::msg::Image>("image_matches_in_frame", 1);
+        _pub_image_kps              = this->create_publisher<sensor_msgs::msg::Image>("image_kps", 1);
+        _pub_vo_traj                = this->create_publisher<visualization_msgs::msg::Marker>("vo_traj", 100);
+        _pub_vo_pose                = this->create_publisher<geometry_msgs::msg::PoseStamped>("vo_pose", 100);
+        _pub_local_map_cloud        = this->create_publisher<visualization_msgs::msg::Marker>("map_local_cloud", 1);
+        _pub_local_map_cloud1       = this->create_publisher<visualization_msgs::msg::Marker>("map_local_cloud1", 1);
+        _pub_global_map_cloud       = this->create_publisher<visualization_msgs::msg::Marker>("map_global_cloud", 1);
+        _pub_local_map_lines        = this->create_publisher<visualization_msgs::msg::Marker>("map_local_lines", 1);
+        _pub_global_map_lines       = this->create_publisher<visualization_msgs::msg::Marker>("map_global_lines", 1);
+        _pub_marker                 = this->create_publisher<visualization_msgs::msg::Marker>("mesh", 1);
+        _pub_cloud                  = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 1);
+        _pub_param                  = this->create_publisher<sadvio_msgs::msg::SLAMParam>("param", 1);
+        _pub_tf_rel                 = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("tf_rel", 100);
         _tf_broadcaster             = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
         _vo_traj_msg.type    = visualization_msgs::msg::Marker::LINE_STRIP;
@@ -198,6 +198,8 @@ class RosVisualizer : public rclcpp::Node {
     }
 
     void publishImage(const std::shared_ptr<isae::Frame> frame) {
+        if (!_pub_image_kps->get_subscription_count()) 
+            return;
         std_msgs::msg::Header header;
         header.frame_id = "world";
         header.stamp    = rclcpp::Node::now();
@@ -240,8 +242,8 @@ class RosVisualizer : public rclcpp::Node {
 
             cv::circle(img_2_pub, cv::Point(pt2d.x(), pt2d.y()), 4, col, -1);
         }
-        std::cout   << "kps: " << nftrn << "/" << nresr << "/" << ninit << "/" << nlmkninit
-                    << " (" << nftrn+nresr+ninit+nlmkninit << ")" << std::endl;
+        // std::cout   << "kps: " << nftrn << "/" << nresr << "/" << ninit << "/" << nlmkninit
+        //             << " (" << nftrn+nresr+ninit+nlmkninit << ")" << std::endl;
 
         for (const auto &feat : frame->getSensors().at(0)->getFeatures()["linexd"]) {
             cv::Scalar col;
@@ -262,6 +264,10 @@ class RosVisualizer : public rclcpp::Node {
     }
 
     void publishMatches(const isae::typed_vec_match matches, bool in_time) {
+        if (!_pub_image_matches_in_time->get_subscription_count() && 
+            !_pub_image_matches_in_frame->get_subscription_count()) {
+                return;
+        }
 
         std_msgs::msg::Header header;
         header.frame_id = "world";
@@ -338,6 +344,8 @@ class RosVisualizer : public rclcpp::Node {
     }
 
     void publishFrame(const std::shared_ptr<isae::Frame> frame) {
+        if (!_pub_vo_pose->get_subscription_count()) 
+            return;
 
         geometry_msgs::msg::PoseStamped Twc_msg;
         Twc_msg.header.stamp    = rclcpp::Time(frame->getTimestamp());
@@ -376,6 +384,8 @@ class RosVisualizer : public rclcpp::Node {
     }
 
     void publishLocalMap(const std::shared_ptr<isae::LocalMap> map) {
+        if (!_pub_vo_traj->get_subscription_count()) 
+            return;
 
         _vo_traj_msg.header.stamp    = rclcpp::Node::now();
         _vo_traj_msg.header.frame_id = "world";
@@ -403,72 +413,88 @@ class RosVisualizer : public rclcpp::Node {
     }
 
     void publishLocalMapCloud(const std::shared_ptr<isae::LocalMap> map, const bool no_fov_mode = false) {
+        if (!_pub_local_map_cloud->get_subscription_count() &&
+            !_pub_local_map_cloud1->get_subscription_count() &&
+            !_pub_local_map_lines->get_subscription_count()) {
+               return;
+        }
         isae::typed_vec_landmarks ldmks = map->getLandmarks();
 
-        _points_local.header.frame_id    = "world";
-        _points_local.header.stamp       = rclcpp::Node::now();
-        _points_local.action             = visualization_msgs::msg::Marker::ADD;
-        _points_local.pose.orientation.w = 1.0;
+        if (_pub_local_map_cloud->get_subscription_count() ||
+            _pub_local_map_cloud1->get_subscription_count()) 
+        {
+            _points_local.header.frame_id    = "world";
+            _points_local.header.stamp       = rclcpp::Node::now();
+            _points_local.action             = visualization_msgs::msg::Marker::ADD;
+            _points_local.pose.orientation.w = 1.0;
 
-        _points_local1.header.frame_id    = "world";
-        _points_local1.header.stamp       = rclcpp::Node::now();
-        _points_local1.action             = visualization_msgs::msg::Marker::ADD;
-        _points_local1.pose.orientation.w = 1.0;
+            _points_local1.header.frame_id    = "world";
+            _points_local1.header.stamp       = rclcpp::Node::now();
+            _points_local1.action             = visualization_msgs::msg::Marker::ADD;
+            _points_local1.pose.orientation.w = 1.0;
 
-        // build the point cloud from point3D lmks
-        _points_local.points.clear();
-        _points_local1.points.clear();
+            // build the point cloud from point3D lmks
+            _points_local.points.clear();
+            _points_local1.points.clear();
 
-        for (auto &l : ldmks["pointxd"]) {
-            if (l->isOutlier())
-                continue;
-            Eigen::Vector3d pt3d = l->getPose().translation();
+            for (auto &l : ldmks["pointxd"]) {
+                if (l->isOutlier())
+                    continue;
+                Eigen::Vector3d pt3d = l->getPose().translation();
 
-            geometry_msgs::msg::Point pt;
-            pt.x = pt3d.x();
-            pt.y = pt3d.y();
-            pt.z = pt3d.z();
-
-            if (no_fov_mode) {
-                if (l->getFeatures().at(0).lock()->getSensor() ==
-                    l->getFeatures().at(0).lock()->getSensor()->getFrame()->getSensors().at(1))
-                    _points_local1.points.push_back(pt);
-                else
-                    _points_local.points.push_back(pt);
-            } else
-                _points_local.points.push_back(pt);
-        }
-
-        _pub_local_map_cloud1->publish(_points_local1);
-        _pub_local_map_cloud->publish(_points_local);
-
-        _lines_local.header.frame_id    = "world";
-        _lines_local.header.stamp       = rclcpp::Node::now();
-        _lines_local.action             = visualization_msgs::msg::Marker::ADD;
-        _lines_local.pose.orientation.w = 1.0;
-
-        // build the point cloud from line3D lmks
-        _lines_local.points.clear();
-        for (auto &l : ldmks["linexd"]) {
-            if (l->isOutlier())
-                continue;
-            Eigen::Affine3d T_w_ldmk                = l->getPose();
-            std::vector<Eigen::Vector3d> ldmk_model = l->getModelPoints();
-            for (const auto &p3d_model : ldmk_model) {
-                // conversion to the world coordinate system
-                Eigen::Vector3d t_w_lmk = T_w_ldmk * p3d_model.cwiseProduct(Eigen::Vector3d::Ones());
                 geometry_msgs::msg::Point pt;
-                pt.x = t_w_lmk.x();
-                pt.y = t_w_lmk.y();
-                pt.z = t_w_lmk.z();
-                _lines_local.points.push_back(pt);
+                pt.x = pt3d.x();
+                pt.y = pt3d.y();
+                pt.z = pt3d.z();
+
+                if (no_fov_mode) {
+                    if (l->getFeatures().at(0).lock()->getSensor() ==
+                        l->getFeatures().at(0).lock()->getSensor()->getFrame()->getSensors().at(1))
+                        _points_local1.points.push_back(pt);
+                    else
+                        _points_local.points.push_back(pt);
+                } else
+                    _points_local.points.push_back(pt);
             }
+
+            _pub_local_map_cloud1->publish(_points_local1);
+            _pub_local_map_cloud->publish(_points_local);
         }
 
-        _pub_local_map_lines->publish(_lines_local);
+        if (_pub_local_map_lines->get_subscription_count()) 
+        {
+            _lines_local.header.frame_id    = "world";
+            _lines_local.header.stamp       = rclcpp::Node::now();
+            _lines_local.action             = visualization_msgs::msg::Marker::ADD;
+            _lines_local.pose.orientation.w = 1.0;
+
+            // build the point cloud from line3D lmks
+            _lines_local.points.clear();
+            for (auto &l : ldmks["linexd"]) {
+                if (l->isOutlier())
+                    continue;
+                Eigen::Affine3d T_w_ldmk                = l->getPose();
+                std::vector<Eigen::Vector3d> ldmk_model = l->getModelPoints();
+                for (const auto &p3d_model : ldmk_model) {
+                    // conversion to the world coordinate system
+                    Eigen::Vector3d t_w_lmk = T_w_ldmk * p3d_model.cwiseProduct(Eigen::Vector3d::Ones());
+                    geometry_msgs::msg::Point pt;
+                    pt.x = t_w_lmk.x();
+                    pt.y = t_w_lmk.y();
+                    pt.z = t_w_lmk.z();
+                    _lines_local.points.push_back(pt);
+                }
+            }
+
+            _pub_local_map_lines->publish(_lines_local);
+        }
     }
 
     void publishGlobalMapCloud(const std::shared_ptr<isae::GlobalMap> map) {
+        if (!_pub_global_map_cloud->get_subscription_count() &&
+            !_pub_global_map_lines->get_subscription_count()) {
+                return;
+        }
         isae::typed_vec_landmarks ldmks = map->getLandmarks();
 
         _points_global.header.frame_id    = "world";
@@ -518,6 +544,10 @@ class RosVisualizer : public rclcpp::Node {
     }
 
     void publishMesh(const std::shared_ptr<isae::Mesh3D> mesh) {
+        if (!_pub_marker->get_subscription_count() &&
+            !_pub_cloud->get_subscription_count()) {
+                return;
+        }
 
         _mesh_line_list.points.clear();
         _mesh_line_list.colors.clear();
@@ -621,20 +651,26 @@ class RosVisualizer : public rclcpp::Node {
     }
 
     void publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param) {
+        if (!_pub_param->get_subscription_count()) 
+            return;
         sadvio_msgs::msg::SLAMParam param_msg = fillParamMsg(_slam_param);
         _pub_param->publish(param_msg);
     }
     
     uint publishParam(std::shared_ptr<isae::SLAMParameters> _slam_param, const std::shared_ptr<isae::Frame> frame) {
+        if (!_pub_param->get_subscription_count()) 
+            return 0;
         sadvio_msgs::msg::SLAMParam param_msg = fillParamMsg(_slam_param);
         unsigned long long ts = frame->getTimestamp();
         param_msg.header.stamp.sec = ts/1000000000u;
         param_msg.header.stamp.nanosec = ts % 1000000000u;
         _pub_param->publish(param_msg);
-        return frame->_frame_count;
+        return frame->_id;
     }
 
     void publishRelativeTF(const std::shared_ptr<isae::LocalMap> map) {
+        if (!_pub_tf_rel->get_subscription_count()) 
+            return;
         
         if (map->getFrames().size() > 1) {
             std::shared_ptr<isae::Frame> f = map->getFrames().back(); // newest
@@ -678,7 +714,7 @@ class RosVisualizer : public rclcpp::Node {
                 publishImage(SLAM->_frame_to_display);
                 publishFrame(SLAM->_frame_to_display);
 
-                if (SLAM->_frame_to_display->_frame_count - old_frame_count > 10)
+                if (SLAM->_frame_to_display->_id - old_frame_count > 10)
                     old_frame_count = publishParam(SLAM->_slam_param, SLAM->_frame_to_display);
 
                 SLAM->_frame_to_display.reset();

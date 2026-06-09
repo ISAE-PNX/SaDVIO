@@ -327,7 +327,9 @@ bool AOptimizer::localMapBA(std::shared_ptr<isae::LocalMap> &local_map, const si
     _map_lmk_ptpar.clear();
     _map_lmk_posepar.clear();
 
-    // std::cout << summary.BriefReport() << std::endl;
+    // std::stringstream msg;
+    // msg << summary.BriefReport() << std::endl;
+    // std::cout << msg.str();
 
     return true;
 }

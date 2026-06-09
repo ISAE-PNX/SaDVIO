@@ -167,10 +167,10 @@ bool PnPPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &fr
             inliers_typed_matches[m.first->getFeatureLabel()].push_back(m);
         typed_matches = inliers_typed_matches;
 
-        std::cout   << "SLAMCORE DEBUG: Kept features      " << inliers_typed_matches["pointxd"].size()
-                    << " (" << nmatches << ")" 
-                    << " [estimateTransformBetween (typed)]"
-                    << std::endl;
+        // std::cout   << "SLAMCORE DEBUG: Kept features      " << inliers_typed_matches["pointxd"].size()
+        //             << " (" << nmatches << ")" 
+        //             << " [estimateTransformBetween (typed)]"
+        //             << std::endl;
 
         return true;
     }

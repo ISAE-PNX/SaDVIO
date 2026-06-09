@@ -46,6 +46,7 @@ bool SLAMBiMono::init() {
     initLandmarks(_frame);
     std::cout << "Optimize landmarks..." << std::endl; 
     _slam_param->getOptimizerFront()->landmarkOptimization(_frame);
+    _local_map_to_display.reset();
 
     std::cout << "Create mesh..." << std::endl; 
     // Create the 3D mesh
@@ -61,7 +62,9 @@ bool SLAMBiMono::init() {
     profiling();
 
     // Send frame to optimizer
-    _frame_to_optim = _frame;
+    _map_mutex.lock();
+    _frame_to_optim_queue.push(_frame);
+    _map_mutex.unlock();
     _is_init        = true;
     _successive_fails = 0;
     _nkeyframes++;
@@ -80,12 +83,15 @@ bool SLAMBiMono::frontEndStep() {
     // Ignore frames without images
     if (_frame->getSensors().empty())
         return true;
+
+    if (!getLastKF())
+        return true;
+
     _nframes++;
 
-    std::cout << "DEBUG: frame " << _nframes << "/" << _nkeyframes << std::endl;
-
+    // std::cout << "DEBUG: frame " << _nframes << "/" << _nkeyframes << std::endl;
     // Predict pose with constant velocity model
-    double dt = (_frame->getTimestamp() - getLastKF()->getTimestamp()) * 1e-9;
+    double dt = (_frame->getTimestamp() - getLastKF()->getTimestamp()) * 1e-9;    
     Eigen::Affine3d T_f_w =
         geometry::se3_Vec6dtoRT(_6d_velocity * dt).inverse() * getLastKF()->getWorld2FrameTransform();
     _frame->setWorld2FrameTransform(T_f_w);
@@ -115,7 +121,7 @@ bool SLAMBiMono::frontEndStep() {
                                          _matches_in_time,
                                          _matches_in_time_lmk,
                                          getLastKF()->getSensors().at(0)->getFeatures());
-    }
+    }    
     // dispMiTl();
     // std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
 
@@ -138,6 +144,7 @@ bool SLAMBiMono::frontEndStep() {
         // Epipolar Filtering for matches in time
         isae::timer::tic();
         int removed_matching_nb = _matches_in_time["pointxd"].size();
+        
         _matches_in_time =
             epipolarFiltering(getLastKF()->getSensors().at(0), _frame->getSensors().at(0), _matches_in_time);
         removed_matching_nb -= _matches_in_time["pointxd"].size();
@@ -192,7 +199,9 @@ bool SLAMBiMono::frontEndStep() {
     // _frame->setKeyFrame(); // DEBUG
     if (shouldInsertKeyframe(_frame)) {
 
-        // std::cout << "Voted KeyFrame" << std::endl;
+        std::stringstream  msg_vote;
+        msg_vote << "Voted KeyFrame " << _frame->_id << std::endl;
+        std::cout << msg_vote.str();
 
         // Frame is added
         _nkeyframes++;
@@ -210,25 +219,27 @@ bool SLAMBiMono::frontEndStep() {
         isae::timer::tic();
         _map_mutex.lock();
         uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
+        _map_mutex.unlock();
         
         // std::cout << "SLAMCORE DEBUG: Resurrected lmks   " << resu << std::endl;
 
-        _map_mutex.unlock();
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         _avg_resur_lmk   = (_avg_lmk_resur_t * (_nkeyframes - 1) + resu) / _nkeyframes;
 
         // Track features in frame
         isae::timer::tic();
-        // std::cout << "SLAMCORE DEBUG: match w.r.t. 2nd cam"
-        //             << " [frontEndStep]" << std::endl;
+        std::cout << "SLAMCORE DEBUG: match w.r.t. 2nd cam"
+                    << " [frontEndStep]" << std::endl;        
+        _map_mutex.lock();
         uint nmatches_in_frame = trackFeatures(_frame->getSensors().at(0),
                                                _frame->getSensors().at(1),
                                                _matches_in_frame,
                                                _matches_in_frame_lmk,
-                                               _frame->getSensors().at(0)->getFeatures());
+                                               _frame->getSensors().at(0)->getFeatures());                                               
+        _map_mutex.unlock();
         // dispMAll();
         // _feature_evolution->
-        //  std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
+         std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
         //  std::cout << "Features in img1: " << _frame->getSensors().at(1)->getFeatures()["pointxd"].size() << std::endl;
 
         // Epipolar Filtering for matches in frame
@@ -247,21 +258,37 @@ bool SLAMBiMono::frontEndStep() {
         // - Triangulate new points : LR + (n-1) / n
         // - Optimize points only because optimal mid-point is not optimal for LM
         // - Reject outliers with reprojection error
-        isae::timer::tic();
-        initLandmarks(_frame);
+        isae::timer::tic();        
+        _map_mutex.lock();
+        initLandmarks(_frame);        
+        _map_mutex.unlock();
+        _map_mutex.lock();
         _slam_param->getOptimizerFront()->landmarkOptimization(_frame);
+        _map_mutex.unlock();
         _avg_lmk_init_t = (_avg_lmk_init_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
 
-        // Wait the end of optim
-        while (_frame_to_optim != nullptr) {
+        // Wait the end of optim if frontend is too fast
+        bool warning_sent = false;
+        while (_frame_to_optim_queue.size() >= _slam_param->_config.max_kf_number) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            if (!warning_sent) {
+                std::cerr   << "WARNING: SLAM Backend cannot keep up! " << _frame_to_optim_queue.size() 
+                            << " frames waiting to be processed." << std::endl;
+                warning_sent = true;
+            }
         }
-        _frame_to_optim = _frame;
-        //  std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
+        _map_mutex.lock();
+        _frame_to_optim_queue.push(_frame);
+        _map_mutex.unlock();
+        // std::stringstream  msg;
+        // msg << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
+        // std::cout << msg.str();
 
     } else {
         // If no KF is voted, the frame is discarded and the landmarks are cleaned
+        _map_mutex.lock();
         _frame->cleanLandmarks();
+        _map_mutex.unlock();
     }
 
     // dispMAll();
@@ -271,6 +298,8 @@ bool SLAMBiMono::frontEndStep() {
     // Init the SLAM again in case of successive failures or if the frame is too far from the last KF
     if ((getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).translation().norm() > 10 ||
         (_successive_fails > 5)) {
+
+        std::cout << "Detected 5 or more successive fails: Reset local map (" << _successive_fails << ")" << std::endl;
 
         _is_init = false;
         _local_map->reset();
@@ -285,7 +314,13 @@ bool SLAMBiMono::frontEndStep() {
 bool SLAMBiMono::backEndStep() {
 
     // Optimize when a frame is declared as optimizable
-    if (_frame_to_optim) {
+    _map_mutex.lock();
+    for(; !_frame_to_optim_queue.empty(); _frame_to_optim_queue.pop()) {
+        _frame_to_optim = _frame_to_optim_queue.front();
+
+        std::stringstream msg;
+        msg << "BACKEND: Add frame " << _frame_to_optim->_id << " to map" << std::endl;
+        std::cout << msg.str();
 
         // Add frame to local map
         _local_map->addFrame(_frame_to_optim);
@@ -296,6 +331,11 @@ bool SLAMBiMono::backEndStep() {
             _mesher->addNewKF(_frame_to_optim);
             _mesh_to_display = _mesher->_mesh_3d;
         }
+    }
+    _map_mutex.unlock();
+    if (_frame_to_optim) {
+        // Reset frame to optim
+        _frame_to_optim = nullptr;
 
         // Marginalization (+ sparsification) of the last frame
         isae::timer::tic();
@@ -309,7 +349,9 @@ bool SLAMBiMono::backEndStep() {
             // _global_map->addFrame(_local_map->getFrames().at(0));
 
             _map_mutex.lock();
+            std::cout << "BACKEND: Remove Frame..." << std::endl;
             _local_map->discardLastFrame();
+            std::cout << "BACKEND: Removed Frame!" << std::endl;
             _map_mutex.unlock();
         }
         _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
@@ -322,11 +364,18 @@ bool SLAMBiMono::backEndStep() {
         profiling();
         // isae::timer::toc("BackEnd Map");
 
-        // Reset frame to optim
-        _frame_to_optim = nullptr;
+        if (_local_map_to_display)
+            std::cout << "LMTD: " << _local_map_to_display.use_count() << std::endl;
 
+        // std::cout << "Show map" << std::endl;
         // Send the local map to the viewer
+        while (_local_map_to_display)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // std::cout << "Show map ..." << std::endl;
         _local_map_to_display = _local_map;
+        // std::cout << "Show map ... ..." << std::endl;
+        while (_local_map_to_display)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     return true;

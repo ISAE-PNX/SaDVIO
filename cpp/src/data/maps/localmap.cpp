@@ -16,13 +16,13 @@ void LocalMap::addFrame(std::shared_ptr<isae::Frame> &frame) {
 
     // Add landmarks to the map
     this->pushLandmarks(frame);
+}
 
-    // If we have too much frames, raise the marginalization flag
-    if (_frames.size() > _max_kf_number) {
-        _margin_flag = true;
-    } else {
-        _margin_flag = false;
-    }
+std::shared_ptr<isae::Frame> LocalMap::getLastFrame() {
+    std::lock_guard<std::mutex> lock(_localmap_mtx);
+    if (_frames.empty())
+        return nullptr;
+    return _frames.back();
 }
 
 void LocalMap::removeFrame(std::shared_ptr<isae::Frame> &frame) {
@@ -37,7 +37,7 @@ void LocalMap::removeFrame(std::shared_ptr<isae::Frame> &frame) {
         }
     }
     _localmap_mtx.unlock();
-    _margin_flag = false;
+    // _margin_flag = false;
 }
 
 void LocalMap::discardLastFrame() {
@@ -53,8 +53,13 @@ void LocalMap::discardLastFrame() {
 
     // remove landmarks in the map without any feature
     this->removeEmptyLandmarks();
-    _margin_flag = false;
+    // _margin_flag = false;
     
+}
+
+typed_vec_landmarks &LocalMap::getLandmarks() { 
+    // std::lock_guard<std::mutex> lock(_localmap_mtx);
+    return _landmarks;       
 }
 
 void LocalMap::removeEmptyLandmarks() {

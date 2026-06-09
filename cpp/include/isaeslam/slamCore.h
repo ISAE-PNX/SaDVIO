@@ -79,7 +79,7 @@ class SLAMCore {
     std::shared_ptr<isae::SLAMParameters> _slam_param;        //!< The parameters the SLAM is currently running with; initialized with the loaded config file (avoid modifying while the SLAM is running)
     // -- reset the following after retrieval if only interested in new updates --
     std::shared_ptr<Frame> _frame_to_display;                 //!< The latest frame (transformation) estimate(s)
-    std::shared_ptr<isae::LocalMap> _local_map_to_display;    //!< The latest local map (sparse point cloud) estimate(s)
+    std::shared_ptr<isae::LocalMap> _local_map_to_display = nullptr;    //!< The latest local map (sparse point cloud) estimate(s)
     std::shared_ptr<isae::GlobalMap> _global_map_to_display;  //!< The latest global map (sparse point cloud) estimate(s)
     std::shared_ptr<Mesh3D> _mesh_to_display;                 //!< The latest mesh (dense vertices) estimate(s)
 
@@ -194,7 +194,18 @@ class SLAMCore {
     /*!
      * @brief Obtains the last (i.e. newest) KeyFrame in the pose graph.
      */
-    std::shared_ptr<Frame> getLastKF() { return _local_map->getLastFrame(); }
+    std::shared_ptr<Frame> getLastKF() { 
+      std::shared_ptr<Frame> f;
+      _map_mutex.lock();
+      if (_frame_to_optim_queue.empty()) {
+        f =_local_map->getLastFrame(); 
+      } else {        
+        f = _frame_to_optim_queue.back();
+      }
+      _map_mutex.unlock();
+      return f;
+    }
+
 
 
     /*!
@@ -239,7 +250,8 @@ class SLAMCore {
 
     // To ensure safe communication between threads
     std::mutex _map_mutex;
-    std::shared_ptr<Frame> _frame_to_optim; //!< For communication between front-end and back-end
+    std::shared_ptr<Frame> _frame_to_optim;
+    std::queue<std::shared_ptr<Frame>> _frame_to_optim_queue; //!< For communication between front-end and back-end
 
     // Profiling variables
     std::filesystem::path profiling_path;

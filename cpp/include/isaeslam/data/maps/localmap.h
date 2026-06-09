@@ -23,6 +23,10 @@ class LocalMap : public AMap {
      */
     void addFrame(std::shared_ptr<Frame> &frame) override;
 
+    std::shared_ptr<isae::Frame> getLastFrame() override;
+
+    typed_vec_landmarks &getLandmarks() override;
+
     /*!
      * @brief Remove a frame from the local map.
      *
@@ -46,7 +50,15 @@ class LocalMap : public AMap {
                              Eigen::Affine3d &T_f1_f2,
                              Eigen::MatrixXd &cov);
 
-    bool getMarginalizationFlag() { return _margin_flag; }
+    bool getMarginalizationFlag() { 
+      // If we have too much frames, raise the marginalization flag
+      if (_frames.size() > _max_kf_number) {
+          _margin_flag = true;
+      } else {
+          _margin_flag = false;
+      } 
+      return _margin_flag;
+    }
 
     /*!
      * @brief Discard the last frame from the local map.

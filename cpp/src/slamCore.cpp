@@ -90,12 +90,15 @@ void SLAMCore::cleanFeatures(std::shared_ptr<Frame> &f) {
 }
 
 void SLAMCore::resetLandmarks() {
+    // _map_mutex.lock();
     _matches_in_time_lmk.clear();
-    _matches_in_time.clear();
+    _matches_in_time.clear();    
+    // _map_mutex.unlock();
 }
 
 void SLAMCore::updateLandmarks(typed_vec_match matches_lmk) {
 
+    // _map_mutex.lock();
     int nb_init = 0;
     // Update all existing landmarks tracked in time
     for (auto &tmatches_lmk : matches_lmk) {
@@ -104,7 +107,8 @@ void SLAMCore::updateLandmarks(typed_vec_match matches_lmk) {
             nb_init += _slam_param->getLandmarksInitializer()[tmatches_lmk.first]->initFromMatch(match_lmk);
         }
         // std::cout << "Kept landmarks: " << nb_init << " (" << tmatches_lmk.second.size() << ")" << std::endl;
-    }
+    }    
+    // _map_mutex.unlock();
 }
 
 void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
@@ -330,10 +334,16 @@ typed_vec_match SLAMCore::epipolarFiltering(std::shared_ptr<ImageSensor> &cam0,
 
 uint SLAMCore::recoverFeatureFromMapLandmarks(std::shared_ptr<isae::AMap> localmap, std::shared_ptr<Frame> &f) {
     uint nb_resurected = 0;
+    // uint nb_temp = 0;
 
     for (auto typed_ldmk : localmap->getLandmarks()) {
         nb_resurected += _slam_param->getFeatureMatchers()[typed_ldmk.first].feature_matcher->ldmk_match(
             f->getSensors().at(0), typed_ldmk.second, 5, 5);
+        // if (nb_temp < nb_resurected)
+        // {
+        //     std::cout << "Resurrected landmarks!" << std::endl;
+        // }
+            
     }
 
     return nb_resurected;
@@ -441,6 +451,8 @@ uint SLAMCore::trackFeatures(std::shared_ptr<ImageSensor> &sensor0,
         matches[typed_tracker.first].clear();
         matches_lmk[typed_tracker.first].clear();
 
+        // std::cout << "SLAMCORE DEBUG: Cleared matches!" << std::endl;
+
         nb_tracks += typed_tracker.second.feature_tracker->track(sensor0,
                                                                  sensor1,
                                                                  features_to_track[typed_tracker.first],
@@ -518,30 +530,30 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
 
     // Case when it is already a KF
     if (f->isKeyFrame()) {
-        std::cout << "Found KF: KF already set" << std::endl;
+        // std::cout << "Found KF: KF already set" << std::endl;
         return true;
     }
 
     // Case when the parallax fall under the parallax noise condition => KF not voted
     if (avg_parallax < _min_movement_parallax) {
-        std::cout << "NO KF: parallax insignificant " <<
-         "(" << avg_parallax << " < " << _min_movement_parallax << ")" << std::endl;
+        // std::cout << "NO KF: parallax insignificant " <<
+        //  "(" << avg_parallax << " < " << _min_movement_parallax << ")" << std::endl;
         return false;
     }
 
     // Case when the parallax in degree is over the threshold => KF voted
     if (avg_parallax > _max_movement_parallax) {
         f->setKeyFrame();
-        std::cout << "Found KF: parallax significant " <<
-         "(" << avg_parallax << " > " << _max_movement_parallax << ")" << std::endl;
+        // std::cout << "Found KF: parallax significant " <<
+        //  "(" << avg_parallax << " > " << _max_movement_parallax << ")" << std::endl;
         return true;
     }
 
     // Case when many landmarks has been lost => KF voted
     if (n_matches_lmk_initialized < _min_lmk_number) {
         f->setKeyFrame();
-        std::cout << "Found KF: init. landmarks insufficient " <<
-         "(" << n_matches_lmk_initialized << " < " << _min_lmk_number << ")" << std::endl;
+        // std::cout << "Found KF: init. landmarks insufficient " <<
+        //  "(" << n_matches_lmk_initialized << " < " << _min_lmk_number << ")" << std::endl;
         return true;
     }
 

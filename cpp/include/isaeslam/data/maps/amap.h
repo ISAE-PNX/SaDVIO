@@ -30,7 +30,7 @@ class AMap {
     /**
      *  @brief Get the last (newest) frame added to the map.
      */
-    std::shared_ptr<isae::Frame> getLastFrame() {
+    virtual std::shared_ptr<isae::Frame> getLastFrame() {
         if (_frames.empty())
             return nullptr;
         return _frames.back();
@@ -45,7 +45,7 @@ class AMap {
         }
     }
 
-    typed_vec_landmarks &getLandmarks() { return _landmarks; }
+    virtual typed_vec_landmarks &getLandmarks() { return _landmarks; }
     size_t getMapSize() { return _frames.size(); }
 
     /**
@@ -65,6 +65,14 @@ class AMap {
                 }
             }
         }
+    }
+
+    void profile() {     
+
+        std::stringstream msg;
+        msg << "Map contains " << getMapSize() << " Frames" << std::endl;
+        msg << "        with " << getLandmarks().size() << " Landmarks" << std::endl;
+        std::cout << msg.str();
     }
 
   protected:
