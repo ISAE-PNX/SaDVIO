@@ -15,7 +15,6 @@ std::shared_ptr<Frame> ADataProvider::next() {
     std::mutex img_mutex;
     std::lock_guard<std::mutex> lock(img_mutex);
     std::shared_ptr<Frame> f = std::make_shared<Frame>();
-    std::cout << "VIO Frame Queue elements: " << _frame_queue.size() << " [next]" << std::endl;
 
     while (_frame_queue.empty())
         cv::waitKey(1);
