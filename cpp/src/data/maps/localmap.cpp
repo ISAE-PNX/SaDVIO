@@ -10,9 +10,10 @@ void LocalMap::addFrame(std::shared_ptr<isae::Frame> &frame) {
 
     // A KF has been voted, the frame is added to the local map
     // The frames are ordered from the oldest to the newest
-    _localmap_mtx.lock();
+    {
+    std::lock_guard<std::mutex> lock(_localmap_mtx);
     _frames.push_back(frame);
-    _localmap_mtx.unlock();
+    }
 
     // Add landmarks to the map
     this->pushLandmarks(frame);
@@ -27,7 +28,7 @@ std::shared_ptr<isae::Frame> LocalMap::getLastFrame() {
 
 void LocalMap::removeFrame(std::shared_ptr<isae::Frame> &frame) {
     // Remove the frame from the local map
-    _localmap_mtx.lock();
+    std::lock_guard<std::mutex> lock(_localmap_mtx);
     for (auto it = _frames.begin(); it != _frames.end(); ++it) {
         if (*it == frame) {
             it->get()->cleanLandmarks();
@@ -36,7 +37,6 @@ void LocalMap::removeFrame(std::shared_ptr<isae::Frame> &frame) {
             break;
         }
     }
-    _localmap_mtx.unlock();
     // _margin_flag = false;
 }
 
@@ -46,10 +46,11 @@ void LocalMap::discardLastFrame() {
     _frames.at(0)->cleanLandmarks();
     _frames.at(0)->cleanSensors();
 
-    _localmap_mtx.lock();
+    {
+    std::lock_guard<std::mutex> lock(_localmap_mtx);
     _removed_frame_poses.push_back(_frames.at(0)->getFrame2WorldTransform());
     _frames.pop_front();
-    _localmap_mtx.unlock();
+    }
 
     // remove landmarks in the map without any feature
     this->removeEmptyLandmarks();
@@ -70,9 +71,10 @@ void LocalMap::removeEmptyLandmarks() {
             if (it->get()->getFeatures().empty()) {
                 it->get()->setMarg();
 
-                _localmap_mtx.lock();
+                {
+                std::lock_guard<std::mutex> lock(_localmap_mtx);
                 it = tlmks.second.erase(it);
-                _localmap_mtx.unlock();
+                }
             } else {
                 it++;
             }
@@ -82,7 +84,7 @@ void LocalMap::removeEmptyLandmarks() {
 
 void LocalMap::reset() {
     std::cout << "Resetting Local Map..." << std::endl;
-    _localmap_mtx.lock();
+    std::lock_guard<std::mutex> lock(_localmap_mtx);
     for (auto &frame : _frames) {
         frame->cleanLandmarks();
         frame->cleanSensors();
@@ -91,7 +93,6 @@ void LocalMap::reset() {
     for (auto &tlmks : _landmarks) {
         tlmks.second.clear();
     }
-    _localmap_mtx.unlock();
     std::cout << "Local Map Reset!" << std::endl;
 }
 

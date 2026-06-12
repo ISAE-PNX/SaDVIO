@@ -15,6 +15,7 @@ std::shared_ptr<Frame> ADataProvider::next() {
     std::mutex img_mutex;
     std::lock_guard<std::mutex> lock(img_mutex);
     std::shared_ptr<Frame> f = std::make_shared<Frame>();
+    std::cout << "VIO Frame Queue elements: " << _frame_queue.size() << " [next]" << std::endl;
 
     while (_frame_queue.empty())
         cv::waitKey(1);
@@ -260,12 +261,13 @@ void ADataProvider::addFrameToTheQueue(std::vector<std::shared_ptr<ASensor>> sen
 
     // Init the Frame
     f->init(sensors, time);
-
-    // add to queue
-    _frame_queue.push(f);
+    addFrameToTheQueue(f);
 }
 
-void ADataProvider::addFrameToTheQueue(std::shared_ptr<Frame> frame) { _frame_queue.push(frame); }
+void ADataProvider::addFrameToTheQueue(std::shared_ptr<Frame> frame) { 
+    _frame_queue.push(frame); 
+    std::cout << "VIO Frame Queue elements: " << _frame_queue.size() << std::endl;
+}
 
 void EUROCGrabber::load_filenames() {
     // Load cam0
