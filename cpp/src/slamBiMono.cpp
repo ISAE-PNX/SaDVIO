@@ -76,9 +76,10 @@ bool SLAMBiMono::init() {
 
 bool SLAMBiMono::frontEndStep() {
 
+    std::cout << "Frontend step" << std::endl;
     // Get next frame
     _frame = _slam_param->getDataProvider()->next();
-    // std::cout << "## # # # ## NEXT frame ## # # # ##" << std::endl;
+    std::cout << "## # # # ## NEXT frame ## # # # ##" << std::endl;
 
     // Ignore frames without images
     if (_frame->getSensors().empty())
@@ -319,12 +320,16 @@ bool SLAMBiMono::backEndStep() {
         _frame_to_optim = _frame_to_optim_queue.front();
 
         std::stringstream msg;
-        msg << "BACKEND: Add frame " << _frame_to_optim->_id << " to map" << std::endl;
+        msg << "BACKEND: Add frame " << _frame_to_optim->_id << " to map ..." << std::endl;
         std::cout << msg.str();
 
         // Add frame to local map
         _local_map->addFrame(_frame_to_optim);
         _frame_to_optim->setKeyFrame();
+
+        std::stringstream().swap(msg);
+        msg << "BACKEND: Added Keyframe " << _frame_to_optim->_id << " to map!" << std::endl;
+        std::cout << msg.str();
 
         // 3D Mesh update
         if (_slam_param->_config.mesh3D) {
@@ -369,14 +374,15 @@ bool SLAMBiMono::backEndStep() {
 
         // std::cout << "Show map" << std::endl;
         // Send the local map to the viewer
-        while (_local_map_to_display)
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+        // TODO: Figure out good way for thread-safe map access!
+
         // std::cout << "Show map ..." << std::endl;
         _local_map_to_display = _local_map;
         // std::cout << "Show map ... ..." << std::endl;
-        while (_local_map_to_display)
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+    std::cout << "BACKEND: Slam is init: " << _is_init << std::endl;
+    std::cout << "BACKEND: Done" << std::endl;
 
     return true;
 }
