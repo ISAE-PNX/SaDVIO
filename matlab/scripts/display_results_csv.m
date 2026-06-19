@@ -1,4 +1,4 @@
-%% configurable stuff
+%% Define paths for all data files
 datadir = fullfile("D:/m.von-arnim/Documents/data/");
 %%
 [file, location] = uigetfile("*.csv", "Select a Results file", datadir);
