@@ -172,8 +172,7 @@ bool SLAMBiMono::frontEndStep() {
         Eigen::MatrixXd cov;
         Eigen::Affine3d T_last_curr, T_w_f;
         T_last_curr = getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform();
-        ESKFEstimator eskf;
-        eskf.estimateTransformBetween(getLastKF(), _frame, _matches_in_time_lmk["pointxd"], T_last_curr, cov);
+        rel_pose_estimator->estimateTransformBetween(getLastKF(), _frame, _matches_in_time_lmk["pointxd"], T_last_curr, cov);
         T_w_f = getLastKF()->getFrame2WorldTransform() * T_last_curr;
         _frame->setdTCov(cov);
         _frame->setWorld2FrameTransform(T_w_f.inverse());

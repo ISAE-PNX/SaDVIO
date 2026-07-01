@@ -107,7 +107,7 @@ bool isae::ESKFEstimator::estimateTransformBetween(const std::shared_ptr<Frame> 
     //     << matches.size() << " matches." << std::endl;
 
     Eigen::Matrix3d intrinsic     = Eigen::Matrix3d::Identity();
-    Eigen::Matrix2d R             = 0.1 * Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d R             = _config->R * Eigen::Matrix2d::Identity();
     Eigen::Matrix<double, 6, 6> P = Eigen::Matrix<double, 6, 6>::Identity();
     P.block(0, 0, 3, 3)           = Eigen::Matrix3d::Identity();
     P.block(3, 3, 3, 3)           = Eigen::Matrix3d::Identity();

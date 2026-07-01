@@ -62,6 +62,7 @@ void isae::SLAMParameters::readConfigFile(const std::string &path_config_folder)
 
     // SLAM parameters
     _config.pose_estimator        = yaml_file["pose_estimator"].as<std::string>();
+    _config.rel_pose_estimator    = yaml_file["rel_pose_estimator"].as<std::string>();
     _config.optimizer             = yaml_file["optimizer"].as<std::string>();
     _config.tracker               = yaml_file["tracker"].as<std::string>();
     _config.min_kf_number         = yaml_file["min_kf_number"].as<int>();
@@ -75,6 +76,7 @@ void isae::SLAMParameters::readConfigFile(const std::string &path_config_folder)
     _config.mesh3D                = yaml_file["mesh3d"].as<int>();
     _config.ZNCC_tsh              = yaml_file["ZNCC_tsh"].as<double>();
     _config.max_length_tsh        = yaml_file["max_length_tsh"].as<double>();
+    _config.eskf_r                = yaml_file["eskf_r"].as<double>();
 
     // Features type
     YAML::Node features_node = yaml_file["features_handled"];

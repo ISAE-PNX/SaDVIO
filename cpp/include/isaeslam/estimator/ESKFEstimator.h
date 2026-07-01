@@ -4,6 +4,12 @@
 
 namespace isae {
 
+class ESKFEstimatorConfig : public APoseEstimatorConfig {
+  public:
+    ESKFEstimatorConfig(double r = 1) : R(r) {};
+    double R;   //!< The measurement covariance (in pixels)
+};
+
 /*!
  * @brief ESKFEstimator class for estimating the transformation between two frames using an EKF
  *
@@ -12,6 +18,8 @@ namespace isae {
  */
 class ESKFEstimator : public APoseEstimator {
   public:
+    ESKFEstimator() : ESKFEstimator(std::make_shared<ESKFEstimatorConfig>()) {};
+    ESKFEstimator(std::shared_ptr<ESKFEstimatorConfig> config) : _config(config) {};
     bool estimateTransformBetween(const std::shared_ptr<Frame> &frame1,
                                   const std::shared_ptr<Frame> &frame2,
                                   vec_match &matches,
@@ -27,6 +35,9 @@ class ESKFEstimator : public APoseEstimator {
      * @brief Refine the triangulation of the landmarks with an ESKF BEWARE: currently being tested
      */
     bool refineTriangulation(std::shared_ptr<Frame> &frame);
+
+  protected:
+    std::shared_ptr<ESKFEstimatorConfig> _config;
 };
 
 } // namespace isae

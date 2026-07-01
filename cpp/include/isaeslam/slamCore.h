@@ -232,6 +232,8 @@ class SLAMCore {
   protected:
     std::shared_ptr<Frame> _frame; //!< Current frame
 
+    std::shared_ptr<APoseEstimator> rel_pose_estimator;    //!< A relative pose (+covariance) estimator for initialization of pose
+
     // Typed vector for matches
     typed_vec_match _matches_in_time;     //!< Typed vector of the matches between the last KF and _frame
     typed_vec_match _matches_in_time_lmk; //!< Typed vector of the matches with landmarks between the last KF and _frame
@@ -288,7 +290,12 @@ class SLAMCore {
 class SLAMBiMono : public SLAMCore {
 
   public:
-    SLAMBiMono(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param) {}
+    SLAMBiMono(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param)  {
+      if (_slam_param->_config.rel_pose_estimator == "eskf") {
+        rel_pose_estimator = std::make_shared<ESKFEstimator>(
+            std::make_shared<ESKFEstimatorConfig>(_slam_param->_config.eskf_r));
+      }
+    }
 
     bool init() override;
     bool frontEndStep() override;

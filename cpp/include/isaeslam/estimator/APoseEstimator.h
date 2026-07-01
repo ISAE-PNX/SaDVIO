@@ -9,6 +9,11 @@
 
 namespace isae {
 
+class APoseEstimatorConfig {
+  public:
+    // whatever parameters the estimator needs
+};
+
 /*!
  * @brief Abstract class for relative pose estimation between two frames.
  *
