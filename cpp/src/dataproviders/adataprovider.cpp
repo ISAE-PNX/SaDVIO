@@ -265,7 +265,7 @@ void ADataProvider::addFrameToTheQueue(std::vector<std::shared_ptr<ASensor>> sen
 
 void ADataProvider::addFrameToTheQueue(std::shared_ptr<Frame> frame) { 
     _frame_queue.push(frame); 
-    std::cout << "VIO Frame Queue elements: " << _frame_queue.size() << std::endl;
+    // std::cout << "VIO Frame Queue elements: " << _frame_queue.size() << std::endl;
 }
 
 void EUROCGrabber::load_filenames() {

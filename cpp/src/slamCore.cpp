@@ -579,9 +579,12 @@ bool SLAMCore::predict(std::shared_ptr<Frame> &f) {
 
         // Check if the pose is valid 
         if (T_const.translation().norm() > 0.1) {
-            double delta_norm = (geometry::se3_RTtoVec6d(T_last_curr) - geometry::se3_RTtoVec6d(T_const)).norm() / 
-                                geometry::se3_RTtoVec6d(T_const).norm();
-            if (delta_norm > 10) { // TODO: Make adjustible
+            Vector6d delta = geometry::se3_RTtoVec6d(T_last_curr) - geometry::se3_RTtoVec6d(T_const);
+            Eigen::Affine3d deltaT = geometry::se3_Vec6dtoRT(delta);
+            double delta_norm = delta.norm() / geometry::se3_RTtoVec6d(T_const).norm();
+            double translation_norm = deltaT.translation().norm();
+            if (delta_norm > _slam_param->_config.delta_norm ||
+                translation_norm > _slam_param->_config.translation_norm) { // TODO: Make adjustible
                 std::cerr << "Predict fails, PnP pose is not valid" << std::endl;
                 std::cout << "T_last_curr: " << T_last_curr.translation().transpose() << std::endl;
                 std::cout << "T_const: " << T_const.translation().transpose() << std::endl;

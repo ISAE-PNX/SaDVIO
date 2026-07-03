@@ -77,6 +77,8 @@ void isae::SLAMParameters::readConfigFile(const std::string &path_config_folder)
     _config.ZNCC_tsh              = yaml_file["ZNCC_tsh"].as<double>();
     _config.max_length_tsh        = yaml_file["max_length_tsh"].as<double>();
     _config.eskf_r                = yaml_file["eskf_r"].as<double>();
+    _config.delta_norm            = yaml_file["delta_norm"].as<double>();
+    _config.translation_norm      = yaml_file["translation_norm"].as<double>();
 
     // Features type
     YAML::Node features_node = yaml_file["features_handled"];

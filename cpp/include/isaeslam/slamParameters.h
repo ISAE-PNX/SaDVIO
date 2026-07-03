@@ -87,6 +87,8 @@ struct Config {
     bool mesh3D;                 //!< 0 no 3D mesh, 1 3D mesh
     double ZNCC_tsh;             //!< Threshold on ZNCC for triangle filtering
     double max_length_tsh;       //!< Threshold on maximum length for triangle filtering
+    double delta_norm;           //!< Threshold on total delta change (rotation + translation) betweeen two frames
+    double translation_norm;     //!< Threshold on total delta translation betweeen two frames
 
     std::vector<FeatureStruct> features_handled; //!< types of features the slam will work on separated with commas (,)
 };

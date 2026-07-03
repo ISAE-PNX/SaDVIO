@@ -5,25 +5,30 @@
 namespace isae {
 
 bool SLAMBiMono::init() {
-    std::cout << "Initialize BIMONO..." << std::endl; 
+    std::cout << "[VIO-init] Initialize BIMONO..." << std::endl; 
+    Eigen::Affine3d initial_pose;
     if (_successive_fails) {
         std::cerr << "Re-initialization ... " << _successive_fails << std::endl;
+        initial_pose = _frame->getWorld2FrameTransform();
         // throw std::runtime_error("THROW RE-INIT");
+    } else {
+        initial_pose = Eigen::Affine3d::Identity();
     }
+    _successive_fails = 0;
 
-    std::cout << "Create frame..." << std::endl; 
+    std::cout << "[VIO-init] Create frame..." << std::endl; 
     // get first frame and set keyframe
     _frame = _slam_param->getDataProvider()->next();
     while (_frame->getSensors().empty()) {
         _frame = _slam_param->getDataProvider()->next();
     }
 
-    std::cout << "Create prior..." << std::endl; 
+    std::cout << "[VIO-init] Create prior..." << std::endl; 
     // Prior on the first frame, it is set as the origin
-    _frame->setWorld2FrameTransform(Eigen::Affine3d::Identity());
-    _frame->setPrior(Eigen::Affine3d::Identity(), 100 * Vector6d::Ones());
+    _frame->setWorld2FrameTransform(initial_pose);
+    _frame->setPrior(initial_pose, 100 * Vector6d::Ones());
 
-    std::cout << "Create features..." << std::endl; 
+    std::cout << "[VIO-init] Create features..." << std::endl; 
     // detect all features on all sensors
     detectFeatures(_frame->getSensors().at(0));
 
@@ -34,27 +39,27 @@ bool SLAMBiMono::init() {
                   _matches_in_frame_lmk,
                   _frame->getSensors().at(0)->getFeatures());
 
-    std::cout << "Create matches..." << std::endl; 
+    std::cout << "[VIO-init] Create matches..." << std::endl; 
     // Filter matches in frame
     _matches_in_frame = epipolarFiltering(_frame->getSensors().at(0), _frame->getSensors().at(1), _matches_in_frame);
 
     // init the velocity
     _6d_velocity = 0.00001 * Vector6d::Ones();
 
-    std::cout << "Create landmarks..." << std::endl; 
+    std::cout << "[VIO-init] Create landmarks..." << std::endl; 
     // init first landmarks
     initLandmarks(_frame);
-    std::cout << "Optimize landmarks..." << std::endl; 
+    std::cout << "[VIO-init] Optimize landmarks..." << std::endl; 
     _slam_param->getOptimizerFront()->landmarkOptimization(_frame);
     _local_map_to_display.reset();
 
-    std::cout << "Create mesh..." << std::endl; 
+    std::cout << "[VIO-init] Create mesh..." << std::endl; 
     // Create the 3D mesh
     if (_slam_param->_config.mesh3D) {
         _mesher->addNewKF(_frame);
     }
 
-    std::cout << "Clean..." << std::endl; 
+    std::cout << "[VIO-init] Clean..." << std::endl; 
     // Ignore features that were not triangulated
     cleanFeatures(_frame);
     detectFeatures(_frame->getSensors().at(0));
@@ -66,20 +71,19 @@ bool SLAMBiMono::init() {
     _frame_to_optim_queue.push(_frame);
     _map_mutex.unlock();
     _is_init        = true;
-    _successive_fails = 0;
     _nkeyframes++;
     dispMAll();
 
-    std::cout << "Initialized BIMONO!" << std::endl; 
+    std::cout << "[VIO-init] #### Initialized BIMONO! ####" << std::endl; 
     return true;
 }
 
 bool SLAMBiMono::frontEndStep() {
 
-    std::cout << "Frontend step" << std::endl;
+    // std::cout << "Frontend step" << std::endl;
     // Get next frame
     _frame = _slam_param->getDataProvider()->next();
-    std::cout << "## # # # ## NEXT frame ## # # # ##" << std::endl;
+    // std::cout << "## # # # ## NEXT frame ## # # # ##" << std::endl;
 
     // Ignore frames without images
     if (_frame->getSensors().empty())
@@ -192,7 +196,7 @@ bool SLAMBiMono::frontEndStep() {
 
         _successive_fails++;
         outlierRemoval();
-        _frame->setKeyFrame();
+        // _frame->setKeyFrame();
     }
 
 
@@ -228,8 +232,8 @@ bool SLAMBiMono::frontEndStep() {
 
         // Track features in frame
         isae::timer::tic();
-        std::cout << "SLAMCORE DEBUG: match w.r.t. 2nd cam"
-                    << " [frontEndStep]" << std::endl;        
+        // std::cout << "SLAMCORE DEBUG: match w.r.t. 2nd cam"
+        //             << " [frontEndStep]" << std::endl;        
         _map_mutex.lock();
         uint nmatches_in_frame = trackFeatures(_frame->getSensors().at(0),
                                                _frame->getSensors().at(1),
@@ -239,7 +243,7 @@ bool SLAMBiMono::frontEndStep() {
         _map_mutex.unlock();
         // dispMAll();
         // _feature_evolution->
-         std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
+        //  std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
         //  std::cout << "Features in img1: " << _frame->getSensors().at(1)->getFeatures()["pointxd"].size() << std::endl;
 
         // Epipolar Filtering for matches in frame
@@ -302,6 +306,7 @@ bool SLAMBiMono::frontEndStep() {
         std::cout << "Detected 5 or more successive fails: Reset local map (" << _successive_fails << ")" << std::endl;
 
         _is_init = false;
+        _frame = getLastKF();
         _local_map->reset();
         resetLandmarks();
         _slam_param->getOptimizerBack()->resetMarginalization();
@@ -318,17 +323,17 @@ bool SLAMBiMono::backEndStep() {
     for(; !_frame_to_optim_queue.empty(); _frame_to_optim_queue.pop()) {
         _frame_to_optim = _frame_to_optim_queue.front();
 
-        std::stringstream msg;
-        msg << "BACKEND: Add frame " << _frame_to_optim->_id << " to map ..." << std::endl;
-        std::cout << msg.str();
+        // std::stringstream msg;
+        // msg << "BACKEND: Add frame " << _frame_to_optim->_id << " to map ..." << std::endl;
+        // std::cout << msg.str();
 
         // Add frame to local map
         _local_map->addFrame(_frame_to_optim);
         _frame_to_optim->setKeyFrame();
 
-        std::stringstream().swap(msg);
-        msg << "BACKEND: Added Keyframe " << _frame_to_optim->_id << " to map!" << std::endl;
-        std::cout << msg.str();
+        // std::stringstream().swap(msg);
+        // msg << "BACKEND: Added Keyframe " << _frame_to_optim->_id << " to map!" << std::endl;
+        // std::cout << msg.str();
 
         // 3D Mesh update
         if (_slam_param->_config.mesh3D) {
@@ -353,9 +358,9 @@ bool SLAMBiMono::backEndStep() {
             // _global_map->addFrame(_local_map->getFrames().at(0));
 
             _map_mutex.lock();
-            std::cout << "BACKEND: Remove Frame..." << std::endl;
+            // std::cout << "BACKEND: Remove Frame..." << std::endl;
             _local_map->discardLastFrame();
-            std::cout << "BACKEND: Removed Frame!" << std::endl;
+            // std::cout << "BACKEND: Removed Frame!" << std::endl;
             _map_mutex.unlock();
         }
         _avg_marg_t = (_avg_marg_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
@@ -380,8 +385,8 @@ bool SLAMBiMono::backEndStep() {
         _local_map_to_display = _local_map;
         // std::cout << "Show map ... ..." << std::endl;
     }
-    std::cout << "BACKEND: Slam is init: " << _is_init << std::endl;
-    std::cout << "BACKEND: Done" << std::endl;
+    // std::cout << "BACKEND: Slam is init: " << _is_init << std::endl;
+    // std::cout << "BACKEND: Done" << std::endl;
 
     return true;
 }

@@ -25,6 +25,8 @@ pose_estimator: "pnp"
 
 ## relative pose / rel. pose covariance estimator in {eskf, nfr}
 rel_pose_estimator: "eskf"
+delta_norm : 10
+translation_norm : 2
 
 ## select optimizer to use in {Analytic, Numeric, Angular, AngularAnalytic}
 optimizer: "AngularAnalytic"
