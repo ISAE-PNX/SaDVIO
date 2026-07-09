@@ -68,15 +68,16 @@ void SLAMCore::cleanFeatures(std::shared_ptr<Frame> &f) {
 
     // remove feature with outlier ldmk and feature
     isae::typed_vec_features clean_features;
-    auto sensor = f->getSensors().at(0);
-    for (auto tfeat : sensor->getFeatures()) {
-        for (auto feat : tfeat.second) {
-            auto lmk = feat->getLandmark().lock();
-            if (lmk && !lmk->isOutlier() && !feat->isOutlier())
-                clean_features[tfeat.first].push_back(feat);
+    for (auto sensor : f->getSensors()) {
+        for (auto tfeat : sensor->getFeatures()) {
+            for (auto feat : tfeat.second) {
+                auto lmk = feat->getLandmark().lock();
+                if (lmk && !lmk->isOutlier() && !feat->isOutlier())
+                    clean_features[tfeat.first].push_back(feat);
+            }
+            sensor->purgeFeatures(tfeat.first);
+            sensor->addFeatures(tfeat.first, clean_features[tfeat.first]);
         }
-        sensor->purgeFeatures(tfeat.first);
-        sensor->addFeatures(tfeat.first, clean_features[tfeat.first]);
     }
 }
 
@@ -357,6 +358,8 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
     double n_matches_lmk = 0;
 
     // Compute parallax
+    Eigen::Affine3d T_lc_c =
+        getLastKF()->getSensors().at(0)->getWorld2SensorTransform() * f->getSensors().at(0)->getSensor2WorldTransform();
     for (auto tmatch : _matches_in_time_lmk) {
         n_matches += (_matches_in_time[tmatch.first].size() + _matches_in_time_lmk[tmatch.first].size());
         n_matches_lmk += _matches_in_time_lmk[tmatch.first].size();
@@ -364,15 +367,15 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
 
     for (auto tmatch : _matches_in_time) {
         for (auto match : tmatch.second) {
-            avg_parallax +=
-                std::acos(match.first->getBearingVectors().at(0).transpose() * match.second->getBearingVectors().at(0));
+            avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() * T_lc_c.rotation() *
+                                      match.second->getBearingVectors().at(0));
         }
     }
 
     for (auto tmatch : _matches_in_time_lmk) {
         for (auto match : tmatch.second) {
-            avg_parallax +=
-                std::acos(match.first->getBearingVectors().at(0).transpose() * match.second->getBearingVectors().at(0));
+            avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() * T_lc_c.rotation() *
+                                      match.second->getBearingVectors().at(0));
         }
     }
 
@@ -399,9 +402,18 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
     }
 
     // Case when many landmarks has been lost => KF voted
-    if (n_matches_lmk < _min_lmk_number) {
-        f->setKeyFrame();
-        return true;
+    // In mono mode we include also the non triangulated features to avoid poor triangulation
+    // Else we just consider the triangulated landmarks
+    if (_slam_param->_config.slam_mode == "mono" || _slam_param->_config.slam_mode == "monovio") {
+        if ((n_matches_lmk + n_matches) < _min_lmk_number) {
+            f->setKeyFrame();
+            return true;
+        }
+    } else {
+        if (n_matches_lmk < _min_lmk_number) {
+            f->setKeyFrame();
+            return true;
+        }
     }
 
     return false;
