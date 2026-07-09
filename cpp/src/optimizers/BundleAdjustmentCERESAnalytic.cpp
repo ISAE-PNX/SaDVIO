@@ -68,13 +68,15 @@ bool BundleAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<isa
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
                     std::shared_ptr<IMU> imu          = frame->getIMU();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!frame->isKeyFrame() || _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
 
@@ -298,11 +300,14 @@ uint BundleAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &problem
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame()) {
+                    if (!frame->isKeyFrame()) {
                         continue;
                     }
 
@@ -340,11 +345,14 @@ uint BundleAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &problem
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame()) {
+                    if (!frame->isKeyFrame()) {
                         continue;
                     }
 
@@ -423,12 +431,14 @@ uint BundleAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &problem
                 std::vector<std::weak_ptr<AFeature>> featuresAssociatedLandmarks = landmark->getFeatures();
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!frame->isKeyFrame() || _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
 
@@ -462,12 +472,14 @@ uint BundleAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &problem
                 std::vector<std::weak_ptr<AFeature>> featuresAssociatedLandmarks = landmark->getFeatures();
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!frame->isKeyFrame() || _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
 

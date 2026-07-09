@@ -111,7 +111,8 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
             if (lmk) {
                 features.reserve(lmk->getFeatures().size());
                 for (const auto &feat : lmk->getFeatures()) {
-                    features.push_back(feat.lock());
+                    if (auto f = feat.lock())
+                        features.push_back(f);
                 }
             }
             _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(features);

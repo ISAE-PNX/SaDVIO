@@ -57,9 +57,12 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
             bool is_lonely = true;
             int num_cam    = 0;
             for (const auto &f : lmk->getFeatures()) {
+                auto feat = f.lock();
+                if (!feat)
+                    continue;
 
                 // If the landmark is linked to other frames, it is kept
-                if (f.lock()->getSensor()->getFrame() != frame0) {
+                if (feat->getSensor()->getFrame() != frame0) {
                     is_lonely = false;
 
                     // We only include landmarks that have stereo factors (for matrix invertibility)
@@ -545,7 +548,7 @@ void Marginalization::preMarginalizeRelative(std::shared_ptr<Frame> &frame0, std
             for (const auto &f : lmk->getFeatures()) {
 
                 auto feat = f.lock();
-                if (feat->isOutlier())
+                if (!feat || feat->isOutlier())
                     continue;
 
                 if (feat->getSensor()->getFrame() == frame1)

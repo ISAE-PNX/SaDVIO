@@ -54,6 +54,8 @@ void Mesh3D::updateMesh(std::vector<FeatPolygon> feats_polygon, std::shared_ptr<
 
             // Add vertex if it is not already in the mesh
             auto lmk = feat->getLandmark().lock();
+            if (!lmk)
+                continue;
             if (_map_lmk_vertex.find(lmk) == _map_lmk_vertex.end()) {
                 _map_lmk_vertex.emplace(lmk, std::make_shared<Vertex>(lmk));
             }
