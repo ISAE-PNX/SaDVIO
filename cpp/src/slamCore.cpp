@@ -45,15 +45,15 @@ void SLAMCore::outlierRemoval() {
     // Remove outliers from the current kf after tracking / matching
     isae::typed_vec_features clean_features;
 
-    for (auto tf : _frame->getSensors().at(0)->getFeatures()) {
+    for (const auto &tf : _frame->getSensors().at(0)->getFeatures()) {
 
-        for (auto m : _matches_in_time[tf.first]) {
+        for (const auto &m : _matches_in_time[tf.first]) {
             if (!m.second->isOutlier()) {
                 clean_features[tf.first].push_back(m.second);
             }
         }
 
-        for (auto m : _matches_in_time_lmk[tf.first]) {
+        for (const auto &m : _matches_in_time_lmk[tf.first]) {
             if (!m.second->isOutlier()) {
                 clean_features[tf.first].push_back(m.second);
             }
@@ -68,9 +68,9 @@ void SLAMCore::cleanFeatures(std::shared_ptr<Frame> &f) {
 
     // remove feature with outlier ldmk and feature
     isae::typed_vec_features clean_features;
-    for (auto sensor : f->getSensors()) {
-        for (auto tfeat : sensor->getFeatures()) {
-            for (auto feat : tfeat.second) {
+    for (const auto &sensor : f->getSensors()) {
+        for (const auto &tfeat : sensor->getFeatures()) {
+            for (const auto &feat : tfeat.second) {
                 auto lmk = feat->getLandmark().lock();
                 if (lmk && !lmk->isOutlier() && !feat->isOutlier())
                     clean_features[tfeat.first].push_back(feat);
@@ -110,7 +110,7 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
             std::vector<std::shared_ptr<AFeature>> features;
             if (lmk) {
                 features.reserve(lmk->getFeatures().size());
-                for (auto feat : lmk->getFeatures()) {
+                for (const auto &feat : lmk->getFeatures()) {
                     features.push_back(feat.lock());
                 }
             }
@@ -233,7 +233,7 @@ uint SLAMCore::recoverFeatureFromMapLandmarks(std::shared_ptr<ImageSensor> &sens
 
     {
         std::lock_guard<std::mutex> lock(_map_mutex);
-        for (auto typed_ldmk : _local_map->getLandmarks()) {
+        for (auto &typed_ldmk : _local_map->getLandmarks()) {
             nb_resurected += _slam_param->getFeatureMatchers()[typed_ldmk.first].feature_matcher->ldmk_match(
                 sensor, typed_ldmk.second, 5, 5);
         }
@@ -248,19 +248,19 @@ void SLAMCore::predictFeature(std::vector<std::shared_ptr<AFeature>> features,
                               vec_match previous_matches = {}) {
     bool is_init;
 
-    for (auto feature : features) {
+    for (const auto &feature : features) {
 
         is_init = false;
 
-        if (feature->getLandmark().lock()) {
+        auto lmk = feature->getLandmark().lock();
+        if (lmk) {
 
             // Let's project the landmark with the predicted frame pose
-            Eigen::Affine3d T_w_lmk = feature->getLandmark().lock()->getPose();
+            Eigen::Affine3d T_w_lmk = lmk->getPose();
             std::vector<Eigen::Vector2d> predicted_p2ds;
 
             bool success;
-            success = sensor->project(
-                T_w_lmk, feature->getLandmark().lock()->getModel(), predicted_p2ds);
+            success = sensor->project(T_w_lmk, lmk->getModel(), predicted_p2ds);
 
             if (success && std::isfinite(predicted_p2ds.at(0).x()) && std::isfinite(predicted_p2ds.at(0).y())) {
                 features_init.push_back(std::make_shared<AFeature>(predicted_p2ds));
@@ -271,7 +271,7 @@ void SLAMCore::predictFeature(std::vector<std::shared_ptr<AFeature>> features,
         if (is_init)
             continue;
 
-        for (auto match : previous_matches) {
+        for (const auto &match : previous_matches) {
 
             if (feature == match.first) {
                 features_init.push_back(match.second);
@@ -360,20 +360,20 @@ bool SLAMCore::shouldInsertKeyframe(std::shared_ptr<Frame> &f) {
     // Compute parallax
     Eigen::Affine3d T_lc_c =
         getLastKF()->getSensors().at(0)->getWorld2SensorTransform() * f->getSensors().at(0)->getSensor2WorldTransform();
-    for (auto tmatch : _matches_in_time_lmk) {
+    for (const auto &tmatch : _matches_in_time_lmk) {
         n_matches += (_matches_in_time[tmatch.first].size() + _matches_in_time_lmk[tmatch.first].size());
         n_matches_lmk += _matches_in_time_lmk[tmatch.first].size();
     }
 
-    for (auto tmatch : _matches_in_time) {
-        for (auto match : tmatch.second) {
+    for (const auto &tmatch : _matches_in_time) {
+        for (const auto &match : tmatch.second) {
             avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() * T_lc_c.rotation() *
                                       match.second->getBearingVectors().at(0));
         }
     }
 
-    for (auto tmatch : _matches_in_time_lmk) {
-        for (auto match : tmatch.second) {
+    for (const auto &tmatch : _matches_in_time_lmk) {
+        for (const auto &match : tmatch.second) {
             avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() * T_lc_c.rotation() *
                                       match.second->getBearingVectors().at(0));
         }

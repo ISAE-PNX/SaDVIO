@@ -61,13 +61,13 @@ bool SLAMMono::init() {
 
         // Parallax computation
         double n_matches = 0;
-        for (auto tmatch : _matches_in_time) {
+        for (const auto &tmatch : _matches_in_time) {
             n_matches += tmatch.second.size();
         }
 
         double avg_parallax = 0;
-        for (auto tmatch : _matches_in_time) {
-            for (auto match : tmatch.second) {
+        for (const auto &tmatch : _matches_in_time) {
+            for (const auto &match : tmatch.second) {
                 avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() *
                                           match.second->getBearingVectors().at(0)) /
                                 n_matches;

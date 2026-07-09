@@ -47,16 +47,16 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
     }
 
     // Distinguish lmk to marginalize and lmk to keep in landmarks linked to the frame to marginalize
-    for (auto tlmks : _frame_to_marg->getLandmarks()) {
+    for (const auto &tlmks : _frame_to_marg->getLandmarks()) {
         // For all type of landmark
-        for (auto lmk : tlmks.second) {
+        for (const auto &lmk : tlmks.second) {
 
             if (lmk->isOutlier() || !lmk->isInMap() || !lmk->isInitialized())
                 continue;
 
             bool is_lonely = true;
             int num_cam    = 0;
-            for (auto f : lmk->getFeatures()) {
+            for (const auto &f : lmk->getFeatures()) {
 
                 // If the landmark is linked to other frames, it is kept
                 if (f.lock()->getSensor()->getFrame() != frame0) {
@@ -89,8 +89,8 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
     }
 
     // Fill map lmk idx for lmk to marg
-    for (auto tlmks : _lmk_to_marg) {
-        for (auto lmk : tlmks.second) {
+    for (const auto &tlmks : _lmk_to_marg) {
+        for (const auto &lmk : tlmks.second) {
             _map_lmk_idx.emplace(lmk, last_idx);
             (tlmks.first == "pointxd" ? last_idx += 3 : last_idx += 6);
         }
@@ -105,8 +105,8 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
     }
 
     // Fill map lmk idx for lmk to keep
-    for (auto tlmks : _lmk_to_keep) {
-        for (auto lmk : tlmks.second) {
+    for (const auto &tlmks : _lmk_to_keep) {
+        for (const auto &lmk : tlmks.second) {
             _map_lmk_idx.emplace(lmk, last_idx);
             (tlmks.first == "pointxd" ? last_idx += 3 : last_idx += 6);
         }
@@ -119,9 +119,9 @@ void Marginalization::preMarginalize(std::shared_ptr<Frame> &frame0,
 
     bool discard_prior = false;
 
-    for (auto tlmks : marginalization_last->_lmk_to_keep) {
+    for (const auto &tlmks : marginalization_last->_lmk_to_keep) {
         // For all type of landmarks
-        for (auto lmk : tlmks.second) {
+        for (const auto &lmk : tlmks.second) {
             if (_map_lmk_idx.find(lmk) == _map_lmk_idx.end()) {
 
                 // Outlier case: we remove the prior
@@ -196,7 +196,7 @@ void Marginalization::computeInformationAndGradient(std::vector<std::shared_ptr<
 
     // Launch on different thread the local detections
     std::vector<std::thread> threads;
-    for (auto block_vector : thread_chunks) {
+    for (const auto &block_vector : thread_chunks) {
         threads.push_back(std::thread(updateInfoMat, block_vector));
     }
     for (auto &th : threads) {
@@ -237,7 +237,7 @@ bool Marginalization::computeSchurComplement() {
     _bk = b.segment(_m, _n) - A.block(_m, 0, _n, _m) * Amm_inv * b.segment(0, _m);
 
     // Update the map index to apply the reduction
-    for (auto lmk_idx : _map_lmk_idx) {
+    for (const auto &lmk_idx : _map_lmk_idx) {
         _map_lmk_idx.at(lmk_idx.first) -= _m;
     }
     if (_frame_to_keep) {
@@ -355,8 +355,8 @@ bool Marginalization::sparsifyVIO() {
     Eigen::Affine3d T_f_w  = _frame_to_keep->getWorld2FrameTransform();
     Eigen::Matrix3d R_f_w  = T_f_w.rotation();
     Eigen::Matrix3d t_skew = geometry::skewMatrix(T_f_w.translation());
-    for (auto tlmk : _lmk_to_keep) {
-        for (auto lmk : tlmk.second) {
+    for (const auto &tlmk : _lmk_to_keep) {
+        for (const auto &lmk : tlmk.second) {
             Eigen::MatrixXd J                                       = Eigen::MatrixXd::Zero(3, _n);
             J.block(0, _map_lmk_idx.at(lmk), 3, 3)                  = R_f_w;
             J.block(0, _map_frame_idx.at(_frame_to_keep), 3, 3)     = -R_f_w * t_skew;
@@ -402,30 +402,31 @@ bool Marginalization::sparsifyVO() {
     /// CHOW LIU TREE REORDERING ///
 
     // Compute a matrix with all MI values
-    Eigen::MatrixXd mi_matrix = Eigen::MatrixXd::Zero(_lmk_to_keep["pointxd"].size(), _lmk_to_keep["pointxd"].size());
-    for (uint k = 0; k < _lmk_to_keep["pointxd"].size(); k++) {
-        for (uint l = 0; l < _lmk_to_keep["pointxd"].size(); l++) {
+    const auto &lmks_to_keep_pointxd = _lmk_to_keep["pointxd"];
+    Eigen::MatrixXd mi_matrix        = Eigen::MatrixXd::Zero(lmks_to_keep_pointxd.size(), lmks_to_keep_pointxd.size());
+    for (uint k = 0; k < lmks_to_keep_pointxd.size(); k++) {
+        for (uint l = 0; l < lmks_to_keep_pointxd.size(); l++) {
 
             // Skip the diagonal elements and if the matrix is already filled
             if (k == l || mi_matrix(k, l) != 0)
                 continue;
 
-            std::shared_ptr<ALandmark> lmk_k = _lmk_to_keep["pointxd"].at(k);
-            std::shared_ptr<ALandmark> lmk_l = _lmk_to_keep["pointxd"].at(l);
-            mi_matrix(k, l)                  = computeOffDiag(lmk_k, lmk_l);
-            mi_matrix(l, k)                  = mi_matrix(k, l);
+            const std::shared_ptr<ALandmark> &lmk_k = lmks_to_keep_pointxd.at(k);
+            const std::shared_ptr<ALandmark> &lmk_l = lmks_to_keep_pointxd.at(l);
+            mi_matrix(k, l)                         = computeOffDiag(lmk_k, lmk_l);
+            mi_matrix(l, k)                          = mi_matrix(k, l);
         }
     }
 
     // Hungarian algorithm to find the best combination
     std::vector<std::shared_ptr<ALandmark>> lmk_to_keep_ordered;
-    lmk_to_keep_ordered.reserve(_lmk_to_keep["pointxd"].size());
+    lmk_to_keep_ordered.reserve(lmks_to_keep_pointxd.size());
     int max_row, max_col;
 
     // First couple
     mi_matrix.maxCoeff(&max_row, &max_col);
-    lmk_to_keep_ordered.push_back(_lmk_to_keep["pointxd"].at(max_row));
-    lmk_to_keep_ordered.push_back(_lmk_to_keep["pointxd"].at(max_col));
+    lmk_to_keep_ordered.push_back(lmks_to_keep_pointxd.at(max_row));
+    lmk_to_keep_ordered.push_back(lmks_to_keep_pointxd.at(max_col));
 
     // Set zero lines and cols of the first lmk and cols of the second
     mi_matrix.col(max_row).setZero();
@@ -532,25 +533,26 @@ void Marginalization::preMarginalizeRelative(std::shared_ptr<Frame> &frame0, std
     _n           = 0;
 
     // Set to marginalize all the common landamrks between the frames
-    for (auto tlmks : frame0->getLandmarks()) {
+    for (const auto &tlmks : frame0->getLandmarks()) {
 
         // For all type of landmark
-        for (auto lmk : tlmks.second) {
+        for (const auto &lmk : tlmks.second) {
 
             if (lmk->isOutlier() || !lmk->isInMap() || !lmk->isInitialized() || lmk->isResurected())
                 continue;
             int num_cam          = 0;
             bool is_linked_to_f1 = false;
-            for (auto f : lmk->getFeatures()) {
+            for (const auto &f : lmk->getFeatures()) {
 
-                if (f.lock()->isOutlier())
+                auto feat = f.lock();
+                if (feat->isOutlier())
                     continue;
 
-                if (f.lock()->getSensor()->getFrame() == frame1)
+                if (feat->getSensor()->getFrame() == frame1)
                     is_linked_to_f1 = true;
-                
 
-                if (f.lock()->getSensor()->getFrame() == frame0)
+
+                if (feat->getSensor()->getFrame() == frame0)
                     num_cam++;
             }
 
