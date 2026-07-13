@@ -353,8 +353,8 @@ bool SLAMNonOverlappingFov::backEndStep() {
 void SLAMNonOverlappingFov::outlierRemoval() {
 
     // Remove outliers from the current kf
-    for (auto tf : _frame->getSensors().at(0)->getFeatures()) {
-        for (auto f : tf.second) {
+    for (const auto &tf : _frame->getSensors().at(0)->getFeatures()) {
+        for (const auto &f : tf.second) {
             if (f->isOutlier()) {
                 _frame->getSensors().at(0)->removeFeature(f);
                 continue;
@@ -362,7 +362,7 @@ void SLAMNonOverlappingFov::outlierRemoval() {
 
             bool is_outlier = true;
 
-            for (auto m : _matches_in_time[tf.first]) {
+            for (const auto &m : _matches_in_time[tf.first]) {
                 if (f == m.second) {
                     is_outlier = false;
                     break;
@@ -372,7 +372,7 @@ void SLAMNonOverlappingFov::outlierRemoval() {
             if (!is_outlier)
                 continue;
 
-            for (auto m : _matches_in_time_lmk[tf.first]) {
+            for (const auto &m : _matches_in_time_lmk[tf.first]) {
                 if (f == m.second) {
                     is_outlier = false;
                     break;
@@ -385,8 +385,8 @@ void SLAMNonOverlappingFov::outlierRemoval() {
         }
     }
 
-    for (auto tf : _frame->getSensors().at(1)->getFeatures()) {
-        for (auto f : tf.second) {
+    for (const auto &tf : _frame->getSensors().at(1)->getFeatures()) {
+        for (const auto &f : tf.second) {
             if (f->isOutlier()) {
                 _frame->getSensors().at(1)->removeFeature(f);
                 continue;
@@ -394,7 +394,7 @@ void SLAMNonOverlappingFov::outlierRemoval() {
 
             bool is_outlier = true;
 
-            for (auto m : _matches_in_time_cam1[tf.first]) {
+            for (const auto &m : _matches_in_time_cam1[tf.first]) {
                 if (f == m.second) {
                     is_outlier = false;
                     break;
@@ -404,7 +404,7 @@ void SLAMNonOverlappingFov::outlierRemoval() {
             if (!is_outlier)
                 continue;
 
-            for (auto m : _matches_in_time_cam1_lmk[tf.first]) {
+            for (const auto &m : _matches_in_time_cam1_lmk[tf.first]) {
                 if (f == m.second) {
                     is_outlier = false;
                     break;
@@ -523,15 +523,20 @@ void SLAMNonOverlappingFov::initLandmarks(std::shared_ptr<Frame> &f) {
         for (auto &ttime : ttracks_in_time.second) {
 
             // Check if the landmark is not initialized
-            if (ttime.first->getLandmark().lock()) {
-                if (ttime.first->getLandmark().lock()->isInitialized())
+            auto lmk = ttime.first->getLandmark().lock();
+            if (lmk) {
+                if (lmk->isInitialized())
                     continue;
             }
 
             // Build the feature vector
             std::vector<std::shared_ptr<AFeature>> features;
-            for (auto feat : ttime.first->getLandmark().lock()->getFeatures()) {
-                features.push_back(feat.lock());
+            if (lmk) {
+                features.reserve(lmk->getFeatures().size());
+                for (const auto &feat : lmk->getFeatures()) {
+                    if (auto f = feat.lock())
+                        features.push_back(f);
+                }
             }
             _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(features);
         }
@@ -544,15 +549,20 @@ void SLAMNonOverlappingFov::initLandmarks(std::shared_ptr<Frame> &f) {
         for (auto &ttime : ttracks_in_time.second) {
 
             // Check if the landmark is not initialized
-            if (ttime.first->getLandmark().lock()) {
-                if (ttime.first->getLandmark().lock()->isInitialized())
+            auto lmk = ttime.first->getLandmark().lock();
+            if (lmk) {
+                if (lmk->isInitialized())
                     continue;
             }
 
             // Build the feature vector
             std::vector<std::shared_ptr<AFeature>> features;
-            for (auto feat : ttime.first->getLandmark().lock()->getFeatures()) {
-                features.push_back(feat.lock());
+            if (lmk) {
+                features.reserve(lmk->getFeatures().size());
+                for (const auto &feat : lmk->getFeatures()) {
+                    if (auto f = feat.lock())
+                        features.push_back(f);
+                }
             }
             _slam_param->getLandmarksInitializer()[ttracks_in_time.first]->initFromFeatures(features);
         }
@@ -649,8 +659,8 @@ bool SLAMNonOverlappingFov::isDegenerativeMotion(Eigen::Affine3d T_cam0_cam0p,
 
     // Second check if there is enough parallax
     double avg_parallax = 0;
-    for (auto tmatch : matches) {
-        for (auto match : tmatch.second) {
+    for (const auto &tmatch : matches) {
+        for (const auto &match : tmatch.second) {
             avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() *
                                       match.second->getBearingVectors().at(0)) /
                             n_matches;

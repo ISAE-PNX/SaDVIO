@@ -68,13 +68,15 @@ bool BundleAdjustmentCERESAnalytic::localMapVIOptimizationTd(std::shared_ptr<isa
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
                     std::shared_ptr<IMU> imu          = frame->getIMU();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!frame->isKeyFrame() || _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
 
@@ -298,11 +300,14 @@ uint BundleAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &problem
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame()) {
+                    if (!frame->isKeyFrame()) {
                         continue;
                     }
 
@@ -340,11 +345,14 @@ uint BundleAdjustmentCERESAnalytic::addLandmarkResiduals(ceres::Problem &problem
 
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame()) {
+                    if (!frame->isKeyFrame()) {
                         continue;
                     }
 
@@ -423,12 +431,14 @@ uint BundleAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &problem
                 std::vector<std::weak_ptr<AFeature>> featuresAssociatedLandmarks = landmark->getFeatures();
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!frame->isKeyFrame() || _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
 
@@ -462,12 +472,14 @@ uint BundleAdjustmentCERESAnalytic::addResidualsLocalMap(ceres::Problem &problem
                 std::vector<std::weak_ptr<AFeature>> featuresAssociatedLandmarks = landmark->getFeatures();
                 for (std::weak_ptr<AFeature> &wfeature : featuresAssociatedLandmarks) {
                     std::shared_ptr<AFeature> feature = wfeature.lock();
-                    std::shared_ptr<ImageSensor> cam  = feature->getSensor();
+                    if (!feature)
+                        continue;
+
+                    std::shared_ptr<ImageSensor> cam = feature->getSensor();
                     std::shared_ptr<Frame> frame      = cam->getFrame();
 
                     // Check the consistency of the frame
-                    if (!feature || !frame->isKeyFrame() ||
-                        _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
+                    if (!frame->isKeyFrame() || _map_frame_posepar.find(frame) == _map_frame_posepar.end()) {
                         continue;
                     }
 
@@ -516,8 +528,8 @@ uint BundleAdjustmentCERESAnalytic::addMarginalizationResiduals(ceres::Problem &
         }
 
         // Add lmk to keep blocks
-        for (auto tlmk : _marginalization->_lmk_to_keep) {
-            for (auto lmk : tlmk.second) {
+        for (const auto &tlmk : _marginalization->_lmk_to_keep) {
+            for (const auto &lmk : tlmk.second) {
                 // TODO: fix this, it is supposed to be in the map
                 if (_map_lmk_ptpar.find(lmk) == _map_lmk_ptpar.end()) {
                     _map_lmk_ptpar.emplace(lmk, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
@@ -680,12 +692,13 @@ bool BundleAdjustmentCERESAnalytic::marginalize(std::shared_ptr<Frame> &frame0,
     }
 
     // Create Marginalization Blocks with landmarks to keep
-    for (auto tlmk : _marginalization->_lmk_to_keep) {
-        for (auto lmk : tlmk.second) {
+    for (const auto &tlmk : _marginalization->_lmk_to_keep) {
+        for (const auto &lmk : tlmk.second) {
             _map_lmk_ptpar.emplace(lmk, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
             // For each feature on the frame
-            for (auto feature : lmk->getFeatures()) {
-                if (feature.lock()->getSensor()->getFrame() == frame0) {
+            for (const auto &feature : lmk->getFeatures()) {
+                auto feat = feature.lock();
+                if (feat->getSensor()->getFrame() == frame0) {
 
                     // Compute index and block vectors for reprojection factor
                     std::vector<double *> parameter_blocks;
@@ -700,8 +713,8 @@ bool BundleAdjustmentCERESAnalytic::marginalize(std::shared_ptr<Frame> &frame0,
                     parameter_blocks.push_back(_map_lmk_ptpar.at(lmk).values());
 
                     // Add the reprojection factor in the marginalization scheme
-                    ceres::CostFunction *cost_fct = new ReprojectionErrCeres_pointxd_dx(
-                        feature.lock()->getPoints().at(0), feature.lock()->getSensor(), lmk->getPose());
+                    ceres::CostFunction *cost_fct =
+                        new ReprojectionErrCeres_pointxd_dx(feat->getPoints().at(0), feat->getSensor(), lmk->getPose());
 
                     _marginalization->_marginalization_blocks.push_back(
                         std::make_shared<MarginalizationBlockInfo>(cost_fct, parameter_idx, parameter_blocks));
@@ -711,12 +724,13 @@ bool BundleAdjustmentCERESAnalytic::marginalize(std::shared_ptr<Frame> &frame0,
     }
 
     // Create Marginalization Blocks with landmark to marginalize
-    for (auto tlmk : _marginalization->_lmk_to_marg) {
-        for (auto lmk : tlmk.second) {
+    for (const auto &tlmk : _marginalization->_lmk_to_marg) {
+        for (const auto &lmk : tlmk.second) {
             _map_lmk_ptpar.emplace(lmk, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
             // For each feature on the frame
-            for (auto feature : lmk->getFeatures()) {
-                if (feature.lock()->getSensor()->getFrame() == frame0) {
+            for (const auto &feature : lmk->getFeatures()) {
+                auto feat = feature.lock();
+                if (feat->getSensor()->getFrame() == frame0) {
 
                     // Compute index and block vectors for reprojection factor
                     std::vector<double *> parameter_blocks;
@@ -731,8 +745,8 @@ bool BundleAdjustmentCERESAnalytic::marginalize(std::shared_ptr<Frame> &frame0,
                     parameter_blocks.push_back(_map_lmk_ptpar.at(lmk).values());
 
                     // Add the reprojection factor in the marginalization scheme
-                    ceres::CostFunction *cost_fct = new ReprojectionErrCeres_pointxd_dx(
-                        feature.lock()->getPoints().at(0), feature.lock()->getSensor(), lmk->getPose());
+                    ceres::CostFunction *cost_fct =
+                        new ReprojectionErrCeres_pointxd_dx(feat->getPoints().at(0), feat->getSensor(), lmk->getPose());
 
                     _marginalization->_marginalization_blocks.push_back(
                         std::make_shared<MarginalizationBlockInfo>(cost_fct, parameter_idx, parameter_blocks));
@@ -764,8 +778,8 @@ bool BundleAdjustmentCERESAnalytic::marginalize(std::shared_ptr<Frame> &frame0,
         }
 
         // Fill the parameters with previous landmarks kept
-        for (auto tlmk : _marginalization_last->_lmk_to_keep) {
-            for (auto lmk : tlmk.second) {
+        for (const auto &tlmk : _marginalization_last->_lmk_to_keep) {
+            for (const auto &lmk : tlmk.second) {
                 parameter_blocks.push_back(_map_lmk_ptpar.at(lmk).values());
                 parameter_idx.push_back(_marginalization->_map_lmk_idx.at(lmk));
             }
@@ -912,12 +926,13 @@ Eigen::MatrixXd BundleAdjustmentCERESAnalytic::marginalizeRelative(std::shared_p
     }
 
     // Create Marginalization Blocks with landmark to marginalize
-    for (auto tlmk : _marginalization->_lmk_to_marg) {
-        for (auto lmk : tlmk.second) {
+    for (const auto &tlmk : _marginalization->_lmk_to_marg) {
+        for (const auto &lmk : tlmk.second) {
             _map_lmk_ptpar.emplace(lmk, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
             // For each feature on the frame
-            for (auto &feature : lmk->getFeatures()) {
-                std::shared_ptr<Frame> frame = feature.lock()->getSensor()->getFrame();
+            for (const auto &feature : lmk->getFeatures()) {
+                auto feat                    = feature.lock();
+                std::shared_ptr<Frame> frame = feat->getSensor()->getFrame();
                 if (frame == frame0 || frame == frame1) {
 
                     // Compute index and block vectors for reprojection factor
@@ -933,8 +948,8 @@ Eigen::MatrixXd BundleAdjustmentCERESAnalytic::marginalizeRelative(std::shared_p
                     parameter_blocks.push_back(_map_lmk_ptpar.at(lmk).values());
 
                     // Add the angular factor in the marginalization scheme
-                    ceres::CostFunction *cost_fct = new ReprojectionErrCeres_pointxd_dx(
-                        feature.lock()->getPoints().at(0), feature.lock()->getSensor(), lmk->getPose());
+                    ceres::CostFunction *cost_fct =
+                        new ReprojectionErrCeres_pointxd_dx(feat->getPoints().at(0), feat->getSensor(), lmk->getPose());
                     _marginalization->_marginalization_blocks.push_back(
                         std::make_shared<MarginalizationBlockInfo>(cost_fct, parameter_idx, parameter_blocks));
                 }

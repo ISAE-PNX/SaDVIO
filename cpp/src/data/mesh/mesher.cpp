@@ -13,7 +13,7 @@ static void draw_delaunay(cv::Mat &img, std::vector<FeatPolygon> tri_feat_vector
     cv::Scalar delaunay_color(0, 255, 0);
     cv::Scalar kp_color(255, 0, 0);
 
-    for (auto feat : tri_feat_vector) {
+    for (const auto &feat : tri_feat_vector) {
         pt[0] = cv::Point(feat.at(0)->getPoints().at(0)(0), feat.at(0)->getPoints().at(0)(1));
         pt[1] = cv::Point(feat.at(1)->getPoints().at(0)(0), feat.at(1)->getPoints().at(0)(1));
         pt[2] = cv::Point(feat.at(2)->getPoints().at(0)(0), feat.at(2)->getPoints().at(0)(1));
@@ -135,20 +135,19 @@ std::vector<FeatPolygon> Mesher::createMesh2D(std::shared_ptr<ImageSensor> senso
 
     // Select Pointxd features with lmk for mesh2D
     std::vector<std::shared_ptr<AFeature>> features_to_triangulate;
-    for (auto feat : sensor->getFeatures()["pointxd"]) {
+    for (const auto &feat : sensor->getFeatures()["pointxd"]) {
 
         // If the feature has an inlier landmark, it will be in the 2D mesh
-        if (feat->getLandmark().lock()) {
+        auto lmk = feat->getLandmark().lock();
+        if (lmk) {
 
             // If the feature is too far away, it is ignored
-            Eigen::Vector3d t_c_l =
-                sensor->getWorld2SensorTransform() * feat->getLandmark().lock()->getPose().translation();
+            Eigen::Vector3d t_c_l = sensor->getWorld2SensorTransform() * lmk->getPose().translation();
 
             if (t_c_l.norm() > 10)
                 continue;
 
-            if (feat->getLandmark().lock()->isOutlier() || !feat->getLandmark().lock()->isInMap() ||
-                !feat->getLandmark().lock()->isInitialized())
+            if (lmk->isOutlier() || !lmk->isInMap() || !lmk->isInitialized())
                 continue;
 
             features_to_triangulate.push_back(feat);

@@ -69,14 +69,19 @@ bool ALandmark::fuseWithLandmark(std::shared_ptr<isae::ALandmark> landmark) {
     // for all the attached features to the landmark to be fused, check if there is some conflict
     for (auto &wf : landmark->getFeatures()) {
         std::shared_ptr<AFeature> f = wf.lock();
+        if (!f)
+            continue;
 
         // check if a feature from the same sensor already exist => wrong association somewhere
-        for (std::weak_ptr<AFeature> &wff : this->_features) {
-            const std::shared_ptr<AFeature> ff = wff.lock();
+        // iterate by index (descending) so expired entries can be erased in place without
+        // invalidating the loop, since erasing via removeFeature() would corrupt a range-for
+        // over this same vector
+        for (int i = static_cast<int>(this->_features.size()) - 1; i >= 0; i--) {
+            const std::shared_ptr<AFeature> ff = this->_features.at(i).lock();
 
             // TODO : Why is this case happening ?
             if (!ff) {
-                this->removeFeature(ff);
+                this->_features.erase(this->_features.begin() + i);
                 continue;
             }
             if (ff->getSensor() == f->getSensor()) {

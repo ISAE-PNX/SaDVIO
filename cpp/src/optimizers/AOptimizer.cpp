@@ -406,7 +406,7 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     local_map->getLastNFramesIn(local_map->getMapSize(), frame_vector);
 
     // Add parameter blocks for the velocity of the IMU
-    for (auto frame : frame_vector) {
+    for (const auto &frame : frame_vector) {
         if (frame->getIMU()) {
             _map_frame_velpar.emplace(frame, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
         }
@@ -428,7 +428,7 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     if (!optim_scale)
         problem.SetParameterBlockConstant(lambda);
 
-    for (auto framej : frame_vector) {
+    for (const auto &framej : frame_vector) {
 
         std::shared_ptr<Frame> framei = framej->getIMU()->getLastKF();
 

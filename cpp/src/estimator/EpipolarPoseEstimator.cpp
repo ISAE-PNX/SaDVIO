@@ -5,64 +5,6 @@
 
 namespace isae {
 
-bool estimateMotionWithHomography(std::vector<cv::Point2d> p_prev,
-                                  std::vector<cv::Point2d> p_curr,
-                                  cv::Mat K,
-                                  cv::Mat H,
-                                  std::vector<cv::Mat> Rs,
-                                  std::vector<cv::Mat> ts,
-                                  std::vector<cv::Mat> normals,
-                                  std::vector<int> inliers) {
-
-    // Homography matrix
-    int method                   = cv::RANSAC;
-    double ransacReprojThreshold = 3;
-    cv::Mat cvMask;
-    H = cv::findHomography(p_prev, p_curr, method, ransacReprojThreshold, cvMask);
-    H /= H.at<double>(2, 2);
-
-    // Get inliers
-    inliers.clear();
-    for (int i = 0; i < cvMask.rows; i++)
-        if ((int)cvMask.at<unsigned char>(i, 0) == 1)
-            inliers.push_back(i);
-
-    // Recover R,t from Homograph matrix
-    cv::decomposeHomographyMat(H, K, Rs, ts, normals);
-    // Normalize t
-    for (auto &t : ts) {
-        t = t / sqrt(t.at<double>(1, 0) * t.at<double>(1, 0) + t.at<double>(2, 0) * t.at<double>(2, 0) +
-                     t.at<double>(0, 0) * t.at<double>(0, 0));
-    }
-
-    // Remove wrong RT
-    // If for a (R,t), a point's pos is behind the camera, then this is wrong.
-    std::vector<cv::Mat> res_Rs, res_ts, res_normals;
-    cv::Mat possibleSolutions; // Use print_MatProperty to know its type: 32SC1
-    std::vector<cv::Point2f> p_prev_np, p_curr_np;
-    for (int idx : inliers) {
-        p_prev_np.push_back(cv::Point2f((p_prev[idx].x - K.at<double>(0, 2)) / K.at<double>(0, 0),
-                                        (p_prev[idx].y - K.at<double>(1, 2)) / K.at<double>(1, 1)));
-        p_curr_np.push_back(cv::Point2f((p_curr[idx].x - K.at<double>(0, 2)) / K.at<double>(0, 0),
-                                        (p_curr[idx].y - K.at<double>(1, 2)) / K.at<double>(1, 1)));
-    }
-
-    cv::filterHomographyDecompByVisibleRefpoints(Rs, normals, p_prev_np, p_curr_np, possibleSolutions);
-    for (int i = 0; i < possibleSolutions.rows; i++) {
-        int idx = possibleSolutions.at<int>(i, 0);
-        res_Rs.push_back(Rs[idx]);
-        res_ts.push_back(ts[idx]);
-        res_normals.push_back(normals[idx]);
-    }
-
-    // return
-    Rs      = res_Rs;
-    ts      = res_ts;
-    normals = res_normals;
-
-    return true;
-}
-
 bool EpipolarPoseEstimator::estimateTransformBetween(const std::shared_ptr<Frame> &frame1,
                                                      const std::shared_ptr<Frame> &frame2,
                                                      vec_match &matches,

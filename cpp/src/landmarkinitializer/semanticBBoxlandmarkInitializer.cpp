@@ -10,6 +10,8 @@ bool semanticBBoxLandmarkInitializer::initLandmark(std::vector<std::shared_ptr<i
 {
     // Get the 3D landmark pose initialy read from the GT file
     std::shared_ptr<ALandmark> ldmk = features.at(0)->getLandmark().lock();
+    if (!ldmk)
+        return false;
     ldmk->setPose(features.at(0)->getSensor()->getSensor2WorldTransform()*ldmk->getPose());
     ldmk->setInlier();
     return true;

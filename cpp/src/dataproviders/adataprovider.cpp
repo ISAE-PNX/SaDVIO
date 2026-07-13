@@ -409,6 +409,8 @@ bool EUROCGrabber::addNextFrame() {
         if (cam0_ts < cam1_ts - 20000000) {
             _cam0_filename_queue.pop();
             _cam0_timestamp_queue.pop();
+            if (_cam0_timestamp_queue.empty())
+                return false;
             cam0_ts = _cam0_timestamp_queue.front();
 
             // Don't forget to add IMU
@@ -421,6 +423,8 @@ bool EUROCGrabber::addNextFrame() {
         } else if (cam0_ts > cam1_ts + 20000000) {
             _cam1_filename_queue.pop();
             _cam1_timestamp_queue.pop();
+            if (_cam1_timestamp_queue.empty())
+                return false;
             cam1_ts = _cam1_timestamp_queue.front();
 
             // Don't forget to add IMU
