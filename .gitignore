@@ -10,3 +10,5 @@ cpp/build
 .vscode/
 
 *.asv
+
+*.mat
