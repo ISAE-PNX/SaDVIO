@@ -6,7 +6,7 @@
 dataset_id : "isae_fisheye_sky_2"
 
 ## slam mode in {mono, bimono, nofov, monovio, bimonovio}
-slam_mode : "bimonovio"
+slam_mode : "bimono"
 enable_visu : 1
 multithreading : 0
 
