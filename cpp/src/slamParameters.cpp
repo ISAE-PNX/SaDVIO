@@ -65,6 +65,7 @@ void isae::SLAMParameters::readConfigFile(const std::string &path_config_folder)
     _config.rel_pose_estimator    = yaml_file["rel_pose_estimator"].as<std::string>();
     _config.optimizer             = yaml_file["optimizer"].as<std::string>();
     _config.tracker               = yaml_file["tracker"].as<std::string>();
+    _config.estimate_td           = yaml_file["estimate_td"].as<int>();
     _config.min_kf_number         = yaml_file["min_kf_number"].as<int>();
     _config.max_kf_number         = yaml_file["max_kf_number"].as<int>();
     _config.fixed_frame_number    = yaml_file["fixed_frame_number"].as<int>();

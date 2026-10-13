@@ -204,7 +204,9 @@ class IMUFactor : public ceres::SizedCostFunction<9, 6, 6, 3, 3, 3, 3> {
                 J_dTfj                   = Eigen::Matrix<double, 9, 6, Eigen::RowMajor>::Zero();
                 Eigen::Vector3d w_dfj    = Eigen::Vector3d(parameters[1][0], parameters[1][1], parameters[1][2]);
                 Eigen::Matrix3d J_r_wdfj = geometry::so3_rightJacobian(w_dfj);
-                J_dTfj.block(0, 0, 3, 3) = -geometry::so3_rightJacobian(r_dr).inverse() * T_fj_w.rotation() * J_r_wdfj;
+                J_dTfj.block(0, 0, 3, 3) = -geometry::so3_rightJacobian(r_dr).inverse() *
+                                           _imu_j->getFrame()->getWorld2FrameTransform().rotation() *
+                                           geometry::exp_so3(w_dfj).transpose() * J_r_wdfj;
                 J_dTfj.block(6, 0, 3, 3) = -T_fi_w.rotation() * T_fj_w.rotation().transpose() *
                                            geometry::skewMatrix(T_fj_w.translation()) * T_fj_w.rotation() * J_r_wdfj;
                 J_dTfj.block(6, 3, 3, 3) = -T_fi_w.rotation() * geometry::exp_so3(w_dfj).transpose();
@@ -738,13 +740,13 @@ class IMUPriordx : public ceres::SizedCostFunction<15, 6, 3, 3, 3> {
 /*!
  * @brief Prior on a 1D parameter (e.g. scale)
  */
-class scalePrior : public ceres::SizedCostFunction<1, 1> {
+class Prior1D : public ceres::SizedCostFunction<1, 1> {
   public:
-    scalePrior(const double sqrt_inf) : _sqrt_inf(sqrt_inf) {}
-    scalePrior() {}
+    Prior1D(const double sqrt_inf, const double _prior) : _sqrt_inf(sqrt_inf) {}
+    Prior1D() {}
 
     virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
-        residuals[0] = _sqrt_inf * (1 - parameters[0][0]);
+        residuals[0] = _sqrt_inf * (_prior - parameters[0][0]);
 
         if (jacobians != NULL) {
             jacobians[0][0] = -_sqrt_inf;
@@ -753,6 +755,7 @@ class scalePrior : public ceres::SizedCostFunction<1, 1> {
         return true;
     }
     double _sqrt_inf; //!< Square root information matrix
+    double _prior;    //!< The prior value
 };
 
 } // namespace isae

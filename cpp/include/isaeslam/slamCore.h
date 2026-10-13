@@ -14,15 +14,16 @@
 #include "isaeslam/data/mesh/mesher.h"
 #include "isaeslam/data/sensors/ASensor.h"
 #include "isaeslam/data/sensors/DoubleSphere.h"
+#include "isaeslam/dataproviders/adataprovider.h"
 #include "isaeslam/estimator/ESKFEstimator.h"
 #include "isaeslam/estimator/EpipolarPoseEstimator.h"
+#include "isaeslam/estimator/PnPPoseEstimator.h"
 #include "isaeslam/featuredetectors/opencv_detectors/cvORBFeatureDetector.h"
 #include "isaeslam/featurematchers/Point2DFeatureMatcher.h"
 #include "isaeslam/featurematchers/Point2DFeatureTracker.h"
 #include "isaeslam/landmarkinitializer/Point3DlandmarkInitializer.h"
 #include "isaeslam/optimizers/AngularAdjustmentCERESAnalytic.h"
 #include "isaeslam/slamParameters.h"
-#include "isaeslam/dataproviders/adataprovider.h"
 #include "isaeslam/typedefs.h"
 #include "utilities/timer.h"
 
@@ -39,7 +40,7 @@ namespace isae {
  */
 class SLAMCore {
   public:
-    SLAMCore(){};
+    SLAMCore() {};
     SLAMCore(std::shared_ptr<isae::SLAMParameters> slam_param);
 
     /*!
@@ -95,6 +96,12 @@ class SLAMCore {
      * @brief Clean all the features that are outliers or are linked to outlier landmark
      */
     void cleanFeatures(std::shared_ptr<Frame> &f);
+
+    /*!
+     * @brief Computes the velocity of the features in the frame, it is used to estimate the time delay between IMU and
+     * cameras
+     */
+    void computeFeatureVelocity(typed_vec_match &matches);
 
     /*!
      * @brief Predicts the position of the features and matches all the features between sensors
@@ -179,12 +186,11 @@ class SLAMCore {
     /*!
      * @brief Performs landmark resurection
      *
-     * @param localmap Local maps that contains the landmark to project
-     * @param f Frame on which the landmarks are resurected
+     * @param sensor Sensor on which the landmarks are resurected
      *
      * @return The number of resurected landmarks
      */
-    uint recoverFeatureFromMapLandmarks(std::shared_ptr<isae::AMap> localmap, std::shared_ptr<Frame> &f);
+    uint recoverFeatureFromMapLandmarks(std::shared_ptr<ImageSensor> &sensor);
 
     /*!
      * @brief Determines if the frame in argument is a KF
@@ -345,6 +351,11 @@ class SLAMMonoVIO : public SLAMCore {
      */
     bool step_init();
 
+    /*!
+     * @brief For profiling at IMU rate
+     */
+    void IMUprofiling();
+
   private:
     std::shared_ptr<IMU> _last_IMU; //!< Last IMU processed by the SLAM
 };
@@ -368,7 +379,7 @@ class SLAMMono : public SLAMCore {
 class SLAMNonOverlappingFov : public SLAMCore {
 
   public:
-    SLAMNonOverlappingFov(){};
+    SLAMNonOverlappingFov() {};
     SLAMNonOverlappingFov(std::shared_ptr<SLAMParameters> slam_param) : SLAMCore(slam_param) {}
 
     bool init() override;

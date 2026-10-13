@@ -2,16 +2,13 @@
 #include "sensorSubscriber.h"
 
 #include "isaeslam/slamCore.h"
-
-#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
 
     // Create the SLAM parameter object
-    std::shared_ptr<isae::SLAMParameters> slam_param = std::make_shared<isae::SLAMParameters>(
-        ament_index_cpp::get_package_share_directory("isae_slam_ros") + "/config");
+    std::shared_ptr<isae::SLAMParameters> slam_param = std::make_shared<isae::SLAMParameters>(argv[1]);
 
     // Create the ROS Visualizer
     std::shared_ptr<RosVisualizer> prosviz;

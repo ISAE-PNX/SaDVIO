@@ -88,6 +88,16 @@ class AFeature : public std::enable_shared_from_this<AFeature> {
         return _sensor.lock();
     }
 
+    void setVelocity(std::vector<Eigen::Vector3d> velocity) {
+        // std::lock_guard<std::mutex> lock(_feat_mtx);
+        _velocity = velocity;
+    }
+
+    std::vector<Eigen::Vector3d> getVelocity() {
+        std::lock_guard<std::mutex> lock(_feat_mtx);
+        return _velocity;
+    }
+
     /**
      * @brief Compute the bearing vectors from the 2D points, usually inverting the camera projection model
      */
@@ -119,6 +129,7 @@ class AFeature : public std::enable_shared_from_this<AFeature> {
     std::string _feature_label;                    //!< Feature label, e.g. point, line, bouding box, etc.
     std::vector<Eigen::Vector2d> _poses2d;         //!< 2D coordinates of the points of the feature in the image
     std::vector<Eigen::Vector3d> _bearing_vectors; //!< Bearing vectors corresponding to the 2D points
+    std::vector<Eigen::Vector3d> _velocity;        //!< Velocity of the 2D points 
     cv::Mat _descriptor;                           //!< Descriptor of the feature, e.g. SIFT, ORB, etc.
     int _octave;                                   //!< Octave of the feature, used in multi-scale feature detection
     float _response;                               //!< Response of the feature, i.e. strength of the feature

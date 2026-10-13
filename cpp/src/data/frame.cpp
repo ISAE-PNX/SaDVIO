@@ -67,12 +67,12 @@ uint Frame::getInMapLandmarksNumber() const {
     for (auto const &sensor : _sensors) {
         for (auto const &typed_feat : sensor->getFeatures()) {
             for (auto const &f : typed_feat.second) {
-                if (f->getLandmark().lock()) {
-                    if (std::find(ldmks.begin(), ldmks.end(), f->getLandmark().lock()) == ldmks.end()) {
-                        if (f->getLandmark().lock()->isInitialized() && !f->getLandmark().lock()->isOutlier() &&
-                            f->getLandmark().lock()->isInMap()) {
+                auto lmk = f->getLandmark().lock();
+                if (lmk) {
+                    if (std::find(ldmks.begin(), ldmks.end(), lmk) == ldmks.end()) {
+                        if (lmk->isInitialized() && !lmk->isOutlier() && lmk->isInMap()) {
                             in_map++;
-                            ldmks.push_back(f->getLandmark().lock());
+                            ldmks.push_back(lmk);
                         }
                     }
                 }

@@ -61,13 +61,13 @@ bool SLAMMono::init() {
 
         // Parallax computation
         double n_matches = 0;
-        for (auto tmatch : _matches_in_time) {
+        for (const auto &tmatch : _matches_in_time) {
             n_matches += tmatch.second.size();
         }
 
         double avg_parallax = 0;
-        for (auto tmatch : _matches_in_time) {
-            for (auto match : tmatch.second) {
+        for (const auto &tmatch : _matches_in_time) {
+            for (const auto &match : tmatch.second) {
                 avg_parallax += std::acos(match.first->getBearingVectors().at(0).transpose() *
                                           match.second->getBearingVectors().at(0)) /
                                 n_matches;
@@ -235,9 +235,7 @@ bool SLAMMono::frontEndStep() {
 
         // Recover Map Landmark
         isae::timer::tic();
-        _map_mutex.lock();
-        uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
-        _map_mutex.unlock();
+        uint resu = recoverFeatureFromMapLandmarks(_frame->getSensors().at(0));
 
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         _avg_resur_lmk   = (_avg_lmk_resur_t * (_nkeyframes - 1) + resu) / _nkeyframes;

@@ -10,6 +10,7 @@ uint AOptimizer::addIMUResiduals(ceres::Problem &problem,
 
     // Add parameter blocks specific to IMU (we suppose that the parameter blocks for pose were already added)
     for (size_t i = 0; i < frame_vector.size(); i++) {
+
         if (frame_vector.at(i)->getIMU()) {
             _map_frame_velpar.emplace(frame_vector.at(i), PointXYZParametersBlock(Eigen::Vector3d::Zero()));
             _map_frame_dbapar.emplace(frame_vector.at(i), PointXYZParametersBlock(Eigen::Vector3d::Zero()));
@@ -19,19 +20,10 @@ uint AOptimizer::addIMUResiduals(ceres::Problem &problem,
             ordering->AddElementToGroup(_map_frame_velpar.at(frame_vector.at(i)).values(), 1);
 
             problem.AddParameterBlock(_map_frame_dbapar.at(frame_vector.at(i)).values(), 3);
-            // problem.SetParameterBlockConstant(_map_frame_dbapar.at(frame_vector.at(i)).values());
             ordering->AddElementToGroup(_map_frame_dbapar.at(frame_vector.at(i)).values(), 1);
 
             problem.AddParameterBlock(_map_frame_dbgpar.at(frame_vector.at(i)).values(), 3);
-            // problem.SetParameterBlockConstant(_map_frame_dbgpar.at(frame_vector.at(i)).values());
             ordering->AddElementToGroup(_map_frame_dbgpar.at(frame_vector.at(i)).values(), 1);
-
-            // Set parameter block constant for fixed frames
-            if ((int)i > (int)(frame_vector.size() - fixed_frame_number - 1)) {
-                problem.SetParameterBlockConstant(_map_frame_velpar.at(frame_vector.at(i)).values());
-                problem.SetParameterBlockConstant(_map_frame_dbapar.at(frame_vector.at(i)).values());
-                problem.SetParameterBlockConstant(_map_frame_dbgpar.at(frame_vector.at(i)).values());
-            }
         }
     }
 
@@ -57,7 +49,7 @@ uint AOptimizer::addIMUResiduals(ceres::Problem &problem,
             // add IMU factor
             ceres::CostFunction *cost_fct = new IMUFactor(framei->getIMU(), framej->getIMU());
             problem.AddResidualBlock(cost_fct,
-                                     loss_function,
+                                     nullptr,
                                      _map_frame_posepar.at(framei).values(),
                                      _map_frame_posepar.at(framej).values(),
                                      _map_frame_velpar.at(framei).values(),
@@ -68,7 +60,7 @@ uint AOptimizer::addIMUResiduals(ceres::Problem &problem,
             // add Bias random walk factor
             ceres::CostFunction *cost_fct_bias = new IMUBiasFactor(framei->getIMU(), framej->getIMU());
             problem.AddResidualBlock(cost_fct_bias,
-                                     loss_function,
+                                     nullptr,
                                      _map_frame_dbapar.at(framei).values(),
                                      _map_frame_dbgpar.at(framei).values(),
                                      _map_frame_dbapar.at(framej).values(),
@@ -157,31 +149,6 @@ bool AOptimizer::singleFrameOptimization(std::shared_ptr<isae::Frame> &moving_fr
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-
-    // Covariance Estimation
-    // ceres::Covariance::Options options_cov;
-    // ceres::Covariance cov(options_cov);
-
-    // // Select Covariance block
-    // std::vector<std::pair<const double*, const double*> > covariance_blocks;
-    // for (auto &frame_posepar : _map_frame_posepar) {
-    //     covariance_blocks.push_back({frame_posepar.second.values(), frame_posepar.second.values()});
-    // }
-
-    // // Compute Covariance
-    // cov.Compute(covariance_blocks, &problem);
-
-    // // std::cout << "---" << std::endl;
-
-    // // Display
-    // for (auto &frame_posepar : _map_frame_posepar) {
-    //     double cov_pp[6 * 6];
-    //     cov.GetCovarianceBlock(frame_posepar.second.values(), frame_posepar.second.values(), cov_pp);
-
-    //     Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>> cov_mat_map(cov_pp);
-    //     // std::cout << cov_mat_map << std::endl;
-    // }
-
 
     // Update state
     for (auto &frame_posepar : _map_frame_posepar) {
@@ -346,7 +313,6 @@ bool AOptimizer::localMapVIOptimization(std::shared_ptr<isae::LocalMap> &local_m
     // Build the Bundle Adjustement Problem
     ceres::Problem problem;
     ceres::LossFunction *loss_function = nullptr;
-
     // Get all moving frames
     std::vector<std::shared_ptr<isae::Frame>> frame_vector;
     local_map->getLastNFramesIn(local_map->getMapSize(), frame_vector);
@@ -354,8 +320,8 @@ bool AOptimizer::localMapVIOptimization(std::shared_ptr<isae::LocalMap> &local_m
     // Add residuals
     auto ordering = new ceres::ParameterBlockOrdering;
     addResidualsLocalMap(problem, loss_function, ordering, frame_vector, fixed_sized_number, local_map);
-    addIMUResiduals(problem, loss_function, ordering, frame_vector, fixed_sized_number);
-    addMarginalizationResiduals(problem, loss_function, ordering);
+    addIMUResiduals(problem, nullptr, ordering, frame_vector, fixed_sized_number);
+    addMarginalizationResiduals(problem, nullptr, ordering);
 
     // Solve the problem we just built
     ceres::Solver::Options options;
@@ -442,7 +408,7 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     local_map->getLastNFramesIn(local_map->getMapSize(), frame_vector);
 
     // Add parameter blocks for the velocity of the IMU
-    for (auto frame : frame_vector) {
+    for (const auto &frame : frame_vector) {
         if (frame->getIMU()) {
             _map_frame_velpar.emplace(frame, PointXYZParametersBlock(Eigen::Vector3d::Zero()));
         }
@@ -451,15 +417,12 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     // Parameter block of the gravity direction
     double r_wi_par[2] = {0.0, 0.0};
     problem.AddParameterBlock(r_wi_par, 2);
-    // problem.SetParameterBlockConstant(r_wi_par);
 
     // Parameter blocks of the delta bias (assumed constant on this sliding window)
     PointXYZParametersBlock dba_par = PointXYZParametersBlock(Eigen::Vector3d(0, 0, 0));
     PointXYZParametersBlock dbg_par = PointXYZParametersBlock(Eigen::Vector3d(0, 0, 0));
     problem.AddParameterBlock(dba_par.values(), 3);
-    problem.SetParameterBlockConstant(dba_par.values());
     problem.AddParameterBlock(dbg_par.values(), 3);
-    problem.SetParameterBlockConstant(dbg_par.values());
 
     // Parameter block of the scale, that is set to 0 as it goes in an exponential
     double lambda[1] = {0.0};
@@ -467,7 +430,7 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     if (!optim_scale)
         problem.SetParameterBlockConstant(lambda);
 
-    for (auto framej : frame_vector) {
+    for (const auto &framej : frame_vector) {
 
         std::shared_ptr<Frame> framei = framej->getIMU()->getLastKF();
 
@@ -489,12 +452,12 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     // add Bias prior
     double dt        = frame_vector.at(0)->getTimestamp() - frame_vector.at(frame_vector.size() - 1)->getTimestamp();
     double sigma_dba = std::sqrt(dt) * frame_vector.at(0)->getIMU()->getbAccNoise();
-    Eigen::Matrix3d sqrt_inf_ba = Eigen::Matrix3d::Identity() * (1 / sigma_dba);
+    Eigen::Matrix3d sqrt_inf_ba = Eigen::Matrix3d::Identity() * (1 / sigma_dba) * 1000;
     ceres::CostFunction *cost_fct_ba =
         new Landmark3DPrior(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), sqrt_inf_ba);
     problem.AddResidualBlock(cost_fct_ba, loss_function, dba_par.values());
     double sigma_dbg            = std::sqrt(dt) * frame_vector.at(0)->getIMU()->getbGyrNoise();
-    Eigen::Matrix3d sqrt_inf_bg = Eigen::Matrix3d::Identity() * (1 / sigma_dbg);
+    Eigen::Matrix3d sqrt_inf_bg = Eigen::Matrix3d::Identity() * (1 / sigma_dbg) * 1000;
     ceres::CostFunction *cost_fct_bg =
         new Landmark3DPrior(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), sqrt_inf_bg);
     problem.AddResidualBlock(cost_fct_bg, loss_function, dbg_par.values());
@@ -562,7 +525,7 @@ double AOptimizer::VIInit(std::shared_ptr<isae::LocalMap> &local_map, Eigen::Mat
     _map_frame_dbapar.clear();
     _map_frame_dbgpar.clear();
 
-    return std::exp(lambda[0]) ;
+    return std::exp(lambda[0]);
 }
 
 // To be implemented in dedicated solvers

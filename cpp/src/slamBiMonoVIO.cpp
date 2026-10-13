@@ -262,7 +262,7 @@ bool SLAMBiMonoVIO::step_init() {
 
         // Recover Map Landmark
         isae::timer::tic();
-        uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
+        uint resu = recoverFeatureFromMapLandmarks(_frame->getSensors().at(0));
 
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + isae::timer::silentToc()) / _nkeyframes;
         _avg_resur_lmk   = (_avg_lmk_resur_t * (_nkeyframes - 1) + resu) / _nkeyframes;
@@ -339,7 +339,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
     double dt          = (_frame->getTimestamp() - getLastKF()->getTimestamp()) * 1e-9;
     Eigen::Affine3d dT = getLastKF()->getWorld2FrameTransform() * _last_IMU->_T_w_f_imu;
     Eigen::Affine3d T_f_w =
-        geometry::se3_Vec6dtoRT(_6d_velocity * dt).inverse() * getLastKF()->getWorld2FrameTransform();
+        dT.inverse() * getLastKF()->getWorld2FrameTransform();
     _frame->setWorld2FrameTransform(T_f_w);
 
     // Detect all features (only if we use the matcher)
@@ -415,7 +415,6 @@ bool SLAMBiMonoVIO::frontEndStep() {
             _avg_clean_t     = (_avg_clean_t * (_nframes - 1) + dt_filter) / _nframes;
         }
 
-
         // Compute velocity and motion model
         _6d_velocity =
             (geometry::se3_RTtoVec6d(getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform())) / dt;
@@ -470,9 +469,7 @@ bool SLAMBiMonoVIO::frontEndStep() {
 
         // Recover Map Landmark
         isae::timer::tic();
-        _map_mutex.lock();
-        uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
-        _map_mutex.unlock();
+        uint resu = recoverFeatureFromMapLandmarks(_frame->getSensors().at(0));
 
         float recover_dt = isae::timer::silentToc();
         _avg_lmk_resur_t = (_avg_lmk_resur_t * (_nkeyframes - 1) + recover_dt) / _nkeyframes;
@@ -529,7 +526,9 @@ bool SLAMBiMonoVIO::frontEndStep() {
         std::cout << "Reinitializing SLAM after " << _successive_fails << " successive fails or too far from last KF"
                   << std::endl;
         std::cout << "IMU dT : \n" << dT.matrix() << std::endl;
-        std::cout << "pnp dT : \n" << (getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).matrix() << "\n ---" << std::endl;
+        std::cout << "pnp dT : \n"
+                  << (getLastKF()->getWorld2FrameTransform() * _frame->getFrame2WorldTransform()).matrix() << "\n ---"
+                  << std::endl;
 
         _is_init = false;
         _local_map->reset();
@@ -581,7 +580,15 @@ bool SLAMBiMonoVIO::backEndStep() {
 
         // Optimize Local Map
         isae::timer::tic();
-        _slam_param->getOptimizerBack()->localMapVIOptimization(_local_map, _local_map->getFixedFrameNumber());
+        if (_slam_param->_config.estimate_td && (geometry::log_so3(_frame_to_optim->getIMU()->getDeltaR()).norm() > 0.05)) {
+            double td = 0;
+            _slam_param->getOptimizerBack()->localMapVIOptimizationTd(_local_map, td, _local_map->getFixedFrameNumber());
+            _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam += td;
+            std::cout << "Global time offset : " << _slam_param->getDataProvider()->getIMUConfig()->dt_imu_cam
+                      << std::endl;
+        } else {
+            _slam_param->getOptimizerBack()->localMapVIOptimization(_local_map, _local_map->getFixedFrameNumber());
+        }
 
         // Vector6d dV = geometry::se3_RTtoVec6d(
         //     _frame_to_optim->getWorld2FrameTransform() * T_w_f.inverse());

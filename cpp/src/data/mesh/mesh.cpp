@@ -17,10 +17,10 @@ void Mesh3D::updateMesh(std::vector<FeatPolygon> feats_polygon, std::shared_ptr<
     _T_w_cam0 = _cam0->getSensor2WorldTransform();
 
     // Clear every triangle with a marginalized / discarded lmk
-    for (auto polygon : _polygons) {
+    for (const auto &polygon : _polygons) {
 
         bool to_remove = false;
-        for (auto vertex : polygon->getVertices()) {
+        for (const auto &vertex : polygon->getVertices()) {
             if (vertex->getLmk()->isMarg() || vertex->getLmk()->isOutlier()) {
                 to_remove = true;
                 if (_map_lmk_vertex.find(vertex->getLmk()) != _map_lmk_vertex.end()) {
@@ -31,7 +31,7 @@ void Mesh3D::updateMesh(std::vector<FeatPolygon> feats_polygon, std::shared_ptr<
 
         // Remove the polygon on every vertex
         if (to_remove) {
-            for (auto vertex : polygon->getVertices()) {
+            for (const auto &vertex : polygon->getVertices()) {
                 vertex->removePolygon(polygon);
             }
             polygon->setOutlier();
@@ -45,24 +45,26 @@ void Mesh3D::updateMesh(std::vector<FeatPolygon> feats_polygon, std::shared_ptr<
                     _polygons.end());
 
     // Add every new triangles from the current mesh2D
-    for (auto feat_polygon : feats_polygon) {
+    for (const auto &feat_polygon : feats_polygon) {
 
         // Fill a lmk polygon with all the lmk of the features
         std::vector<std::shared_ptr<Vertex>> vertices;
 
-        for (auto feat : feat_polygon) {
+        for (const auto &feat : feat_polygon) {
 
             // Add vertex if it is not already in the mesh
-            if (_map_lmk_vertex.find(feat->getLandmark().lock()) == _map_lmk_vertex.end()) {
-                _map_lmk_vertex.emplace(feat->getLandmark().lock(),
-                                        std::make_shared<Vertex>(feat->getLandmark().lock()));
+            auto lmk = feat->getLandmark().lock();
+            if (!lmk)
+                continue;
+            if (_map_lmk_vertex.find(lmk) == _map_lmk_vertex.end()) {
+                _map_lmk_vertex.emplace(lmk, std::make_shared<Vertex>(lmk));
             }
-            vertices.push_back(_map_lmk_vertex.at(feat->getLandmark().lock()));
+            vertices.push_back(_map_lmk_vertex.at(lmk));
         }
 
         // Check if it is already in the mesh3D TODO
         bool is_in_mesh3D = false;
-        for (auto polygon : _polygons) {
+        for (const auto &polygon : _polygons) {
             if (polygon->getVertices() == vertices) {
                 is_in_mesh3D = true;
                 break;
@@ -86,7 +88,7 @@ void Mesh3D::updateMesh(std::vector<FeatPolygon> feats_polygon, std::shared_ptr<
                 _polygons.push_back(polygon);
 
                 // Add it to every vertex
-                for (auto vertex : vertices) {
+                for (const auto &vertex : vertices) {
                     vertex->addPolygon(_polygons.back());
                 }
             }
@@ -99,13 +101,13 @@ void Mesh3D::updateMesh(std::vector<FeatPolygon> feats_polygon, std::shared_ptr<
 
 void Mesh3D::filterMesh() {
 
-    for (auto polygon : _polygons) {
+    for (const auto &polygon : _polygons) {
         Eigen::Vector3d avg_normal = Eigen::Vector3d::Zero();
         int n_polygons             = 0;
 
-        for (auto vertex : polygon->getVertices()) {
+        for (const auto &vertex : polygon->getVertices()) {
 
-            for (auto poly_adj : vertex->getPolygons()) {
+            for (const auto &poly_adj : vertex->getPolygons()) {
                 if (!poly_adj->isOutlier()) {
                     avg_normal += poly_adj->getPolygonNormal();
                     n_polygons++;
@@ -225,7 +227,7 @@ void Mesh3D::projectMesh() {
     _map_poly_tri2d.clear();
 
     // Project every polygon in sensor 0 of the current frame
-    for (auto polygon : _polygons) {
+    for (const auto &polygon : _polygons) {
 
         if (polygon->isOutlier())
             continue;
@@ -274,7 +276,7 @@ bool Mesh3D::checkPolygonTri(std::shared_ptr<Polygon> polygon3d, FeatPolygon pol
     int umax = 0;
     int vmin = 10000;
     int vmax = 0;
-    for (auto feat : polygon2d) {
+    for (const auto &feat : polygon2d) {
         Eigen::Vector2d pt = feat->getPoints().at(0);
         tri2d.push_back(pt);
 

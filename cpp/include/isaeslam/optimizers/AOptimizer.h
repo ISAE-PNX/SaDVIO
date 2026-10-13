@@ -73,6 +73,17 @@ class AOptimizer {
     bool localMapVIOptimization(std::shared_ptr<isae::LocalMap> &local_map, const size_t fixed_frame_number = 0);
 
     /*!
+     * @brief Visual-Inertial Bundle Adjustment for a local map with time delay.
+     * @param local_map The local map to optimize.
+     * @param fixed_frame_number The frame number to fix during optimization (default is 0).
+     * @return The time delay used for optimization.
+     */
+    virtual bool localMapVIOptimizationTd(std::shared_ptr<isae::LocalMap> &local_map,
+                                          double &td,
+                                          const size_t fixed_frame_number = 0) {
+        return true;
+    }
+    /*!
      * @brief Visual-Inertial Initialization for a local map.
      * @param local_map The local map to initialize.
      * @param R_w_i The initial rotation of the world frame with respect to the inertial frame.

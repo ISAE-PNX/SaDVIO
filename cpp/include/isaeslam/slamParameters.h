@@ -68,6 +68,7 @@ struct Config {
     std::string slam_mode;       //!< SLAM mode (mono, bimono, monovio...)
     bool multithreading;         //!< Allow to run front-end and back-end on different threads (unstable...)
     bool enable_visu;            //!< Allow visualization
+    bool estimate_td;            //!< Estimate time delay between IMU and cameras
     std::string optimizer;       //!< Optimizer type (ReprojectionError, AngularError...)
     int contrast_enhancer;       //!< integer to choose the contrast enhancement algorithm
     float clahe_clip;            //!< Clip of CLAHE (useful only if it is chosen for contrast enhancement)

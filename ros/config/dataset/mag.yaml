@@ -1,0 +1,40 @@
+# General sensor definitions.
+dataset: mag
+ncam: 1
+
+camera_0:
+  topic: /cam0/image_raw
+  # Sensor extrinsics wrt. the body-frame.
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [ 0.01952277,  0.99980071, -0.00417151, -0.00336842,
+    -0.9997151 ,  0.01946346, -0.01381691, -0.03004019,
+    -0.01373295,  0.00444008,  0.99989584, -0.11291078,
+    0.0, 0.0, 0.0, 1.0]
+
+  # Camera specific definitions.
+  rate_hz: 20
+  resolution: [960, 600]
+  projection_model: pinhole
+  intrinsics: [566.085165725, 566.01729805, 489.38714319, 301.674407505] #fu, fv, cu, cv
+  distortion_model: radial-tangential
+  distortion_coefficients: [0.02883098, -0.0426136, 0.0003714, -0.00055954]
+
+imu:
+  topic: /imu_0
+  T_BS:
+    cols: 4
+    rows: 4
+    data: [1.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0,
+          0.0, 0.0, 0.0, 1.0]
+  rate_hz: 200
+
+  # inertial sensor noise model parameters (static)
+  gyroscope_noise_density: 1.6968e-04    # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+  gyroscope_random_walk: 1.9393e-05      # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+  accelerometer_noise_density: 2.0000e-2  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+  accelerometer_random_walk: 1.0000e-3     # [ m / s^3 / sqrt(Hz) ]  ( accel bias diffusion )
+  dt_imu_cam: 0.0

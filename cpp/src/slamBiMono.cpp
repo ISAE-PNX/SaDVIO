@@ -221,9 +221,8 @@ bool SLAMBiMono::frontEndStep() {
         // std::cout << "Features in img0: " << _frame->getSensors().at(0)->getFeatures()["pointxd"].size() << std::endl;
         // Recover Map Landmark
         isae::timer::tic();
-        _map_mutex.lock();
-        uint resu = recoverFeatureFromMapLandmarks(_local_map, _frame);
-        _map_mutex.unlock();
+        uint resu = recoverFeatureFromMapLandmarks(_frame->getSensors().at(0));
+        
         
         // std::cout << "SLAMCORE DEBUG: Resurrected lmks   " << resu << std::endl;
 
