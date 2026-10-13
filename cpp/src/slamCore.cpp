@@ -133,7 +133,6 @@ void SLAMCore::initLandmarks(std::shared_ptr<Frame> &f) {
             if (lmk && lmk->isInitialized()) {
                 // nb_skipped++;
                 continue;
-                }
             } else {
                 // std::cout << "LMK cannot be locked!" << std::endl;
                 // continue;
