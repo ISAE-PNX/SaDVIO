@@ -2,89 +2,26 @@ init_path
 %% Define data paths
 % Modify as needed
 datapath = "D:\m.von-arnim\Documents\data";
-
-% use UI instead
 if ~exist("exp_path", "var")
-    exp_path = uigetdir(datapath);
+    % [  datapath, exp_path, GT_data, pg_pose, pg_traj, ...
+    %             gnss_est, context_data, context] = eval_data_load(...
+    %         exp_path="",
 else
-    if questdlg("Select new data?") == "Yes"   
-        exp_path = uigetdir(datapath);
-    end
+    [  datapath, exp_path, GT_data, lla0, pg_pose, pg_traj, ...
+                gnss_est, context_data, context] = eval_data_load(...
+            exp_path=exp_path, ...
+            datapath=datapath, ...
+            load_PG_FUSION= true, ...
+            load_GNSS_EST=  true, ...
+            load_UBLOX=     true, ...
+            load_CONTEXT=   true, ...
+            load_ESKF=      false, ...
+            load_SADVIO=    false);
 end
-disp(exp_path) % what the user selected
-
-exp_path = split(string(exp_path), filesep);
-datapath = strjoin(exp_path(1:end-2), filesep);
-exp_date = exp_path(end);
-exp_folder = exp_path(end-1);
-
-disp(fullfile(datapath, exp_folder, exp_date))
-
-GT_data_folder          = fullfile(datapath, exp_folder, exp_date);
-ublox_data_folder       = fullfile(datapath, exp_folder, exp_date, "ublox");
-rinex_data_folder       = fullfile(datapath, exp_folder, exp_date, "rinex");
-context_data_folder     = fullfile(datapath, exp_folder, exp_date, "_results", "context");
-pg_data_folder          = fullfile(datapath, exp_folder, exp_date, "_results", "pg");
-% pg_data_folder          = fullfile(datapath, exp_folder, exp_date, "_results", "pg");
-results_est_folder      = fullfile(datapath, exp_folder, exp_date, "_results");%, "WLSQ__ms_A___GPS_GAL__context");
-% gnss_est_folder         = fullfile(datapath, exp_folder, exp_date, "_results", "WLSQ__ms___GPS_GAL__context");
-
-ublox_data_file             = "data_ubx_"+exp_date+".mat";
-GT_data_file                = "traj_"+exp_date+".txt";
-context_data_file           = "context_pred_"+exp_date+".mat";
-
-pg_bag_folder = uigetdir(pg_data_folder);
-gnss_est_folder = uigetdir(results_est_folder);
-%% Load data
-% try
-    % [ublox_data.gnssRaw, gnssNavSatUblox, ublox_data.NavPVT] = supaero_loadUbloxGNSS( ...
-    %     "folder", ublox_data_folder,        "file", ublox_data_file);
-ublox_data = ros2baggetublox(ublox_data_folder);
-lla0 = [ublox_data.NavSatFix.latitude(1), ublox_data.NavSatFix.longitude(1), ublox_data.NavSatFix.altitude(1)];
-ublox_data.enu = lla2enu([ublox_data.NavSatFix.latitude, ublox_data.NavSatFix.longitude, ublox_data.NavSatFix.altitude], ...
-    lla0, "flat");
-
-[GT_data]                       = supaero_loadGT( ...
-    "folder", GT_data_folder,           "file", GT_data_file, ...
-    "WeekNum", ublox_data.RAWX.WeekNum(1));
-[context_data, context]         = supaero_loadEnvContext( ...
-    "folder", context_data_folder,      "file", context_data_file, ...
-    "WeekNum", ublox_data.RAWX.WeekNum(1), ...
-    "rostimeref", ublox_data.NavPVT);
-
-gnss_est = ros2baggetNavSatFixContext(gnss_est_folder);    
-gnss_est.enu = lla2enu([gnss_est.latitude, gnss_est.longitude, gnss_est.altitude], ...
-        lla0, "flat");
 
 %% output path
 % if this does not work, run LOAD_DATA
-if ~exist("resultfile", "var")
-    % resultfile = sprintf("%s_%s_res.mat", date, gnssRaw.rec);
-    resultfile = sprintf("%s_%s_res_2.mat", exp_date, "ublox");
-end
-resultfolder =  fullfile(pg_bag_folder);
-imgfolder = fullfile(resultfolder, "fig");
-if ~isfolder(imgfolder)
-    mkdir(imgfolder);
-end
-resultpath = fullfile(resultfolder, resultfile);
-if ~isfolder(resultfolder)
-    mkdir(resultfolder);
-end
-if ~isfile(resultpath)
-    save(resultpath, 'exp_date', "-v7.3");
-end
-% check what is already in the results file
-disp(resultfile)
-who('-file', resultpath);
-%% Load estimated poses
-pg_rd = ros2bagreader(pg_bag_folder);
-pg_pose = ros2baggetPoseStamped(select(pg_rd, "Topic", "/pg/enu/pose"));
-pgvio_pose = ros2baggetPoseStamped(select(pg_rd, "Topic", "/pg/ecef/pose"));
-pg_traj = ros2baggetMarkerPointsFromCSV(pg_bag_folder);
-pg_pose.TOW = sync_TOW_rostime(ublox_data.NavPVT.rostime, ublox_data.NavPVT.TOW, pg_pose.rostime_pose);
-pg_traj.TOW = sync_TOW_rostime(ublox_data.NavPVT.rostime, ublox_data.NavPVT.TOW, pg_traj.rostime);
-pg_traj.NSamp = length(pg_traj.points);
+[resultpath, imgfolder] = setup_output(exp_date, "ublox");
 %% Calculate GT relative poses corresponding to ESKF samples
 vars2interp = ["X_ECEF", "Y_ECEF", "Z_ECEF", "Roll", "Pitch", "Heading", "Latitude", "Longitude", "H_Ell"];
 for v = vars2interp

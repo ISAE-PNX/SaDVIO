@@ -113,17 +113,72 @@ ang_est(:,1) = ang_est(:,1);
 vo_rel_pose.rot_err_eul = vo_rel_pose.GT.dT.eul - ang_est(2:end,:);
 
 %% Calculate rel. position NEES
+dof = 3;
+
 vo_rel_pose.pos_nees = zeros(vo_rel_pose.NSamp,1);
 for i = 1:vo_rel_pose.NSamp-1
     vo_rel_pose.pos_nees(i) = vo_rel_pose.pos_err(i,:) * (vo_rel_pose.cov(1:3,1:3,i) \ vo_rel_pose.pos_err(i,:)');
 end
-confidence = 0.05;
-lowerlimit = icdf("Chisquare",confidence/2,3);
-upperlimit = icdf("Chisquare",1-confidence/2,3);
+confidence = 0.001;
+lowerlimit = icdf("Chisquare",confidence/2, dof);
+upperlimit = icdf("Chisquare",1-confidence/2, dof);
 %% Calculate rel. position ANEES
 anees = mean(vo_rel_pose.pos_nees);
 lowerlimit_anees = icdf("Chisquare",confidence/2,3*vo_rel_pose.NSamp);
 upperlimit_anees = icdf("Chisquare",confidence/2,3*vo_rel_pose.NSamp);
+%% Alternative ANEES / JNEES
+% Time Dependence in Kalman Filter Tuning (2021)
+% Zhaozhong Chen; Christoffer Heckman; Simon Julier; Nisar Ahmed
+slidingwindows = [10 1000 5000];
+figure;
+tcl = tiledlayout(length(slidingwindows)+2, 1);
+nexttile
+hold on
+colororder("dye")
+plot(vo_rel_pose.datetime, (log(nees/dof)))
+hline(0, 'k')
+hline(log(lowerlimit/dof), 'k', 'LineStyle', '--')
+hline(log(upperlimit/dof), 'k', 'LineStyle', '--')
+title("N = 1")
+for slidingwindow = slidingwindows
+    nexttile; hold on
+    nees = vo_rel_pose.pos_nees;
+    jnees       = nan(length(vo_rel_pose.pos_nees),1);
+    nees_var    = nan(length(vo_rel_pose.pos_nees),1);
+    jnees_var   = nan(length(vo_rel_pose.pos_nees),1);
+    for i = 1+(slidingwindow/2):length(jnees)-(slidingwindow/2)
+        jnees(i)        = (log( ...
+            mean(nees((i-(slidingwindow/2)):(i+(slidingwindow/2))))/dof));
+        nees_var(i)    = (var(nees((i-(slidingwindow/2)):(i+(slidingwindow/2))))/(2*dof*slidingwindow));
+        jnees_var(i)    = (log( ...
+            var(nees((i-(slidingwindow/2)):(i+(slidingwindow/2))))/(2*dof*slidingwindow)));
+    end
+
+    llimit = icdf("Chisquare",confidence/2, (dof*slidingwindow));
+    ulimit = icdf("Chisquare",1-confidence/2, (dof*slidingwindow));
+
+    plot(vo_rel_pose.datetime, jnees, 'LineWidth', 2)
+    % plot(vo_rel_pose.datetime, jnees_var, 'LineWidth', 2, 'LineStyle', '--')
+    hline(0, 'k', 'HandleVisibility', 'off')
+    hline(log(llimit/(dof*slidingwindow)), 'k', 'LineStyle', '--', 'HandleVisibility', 'off')
+    hline(log(ulimit/(dof*slidingwindow)), 'k', 'LineStyle', '--')
+    title(sprintf("N = %d", slidingwindow))
+end
+l = legend(["NEES", sprintf("Upper/Lower Bound (p = %g)",confidence)]);
+l.Layout.Tile = "north";
+
+nexttile
+t = context_data.datetime;
+t.TimeZone = "UTC";
+scatter(t, context_data.bay_label, 'HandleVisibility', 'off')
+yticklabels(context.list(2:end))
+
+linkaxes(findall(gcf,'type','axes'), 'x')
+
+title(tcl, "Normalized NEES of VO", "Sliding Window of N samples")
+xlabel(tcl, "Keyframe No.")
+ylabel(tcl, "$ln\left(\frac{NEES}{dof*N}\right)$", "Interpreter", "Latex")
+
 %% %%%% FIGURES and PLOTS %%%% %%
 %% Plot GT pose
 figure
@@ -269,11 +324,46 @@ hold on
 scatter(1:vo_rel_pose.NSamp, vo_rel_pose.pos_nees, ".")
 hline(lowerlimit);
 hline(upperlimit);
+%% ANEES Sliding Window
+
 %% NEES histogram
 figure
 hold on
-histogram(vo_rel_pose.pos_nees, 0:0.1:max(vo_rel_pose.pos_nees))
+histogram(vo_rel_pose.pos_nees, 0:0.1:max(vo_rel_pose.pos_nees), Normalization="probability")
 % quantile(vo_rel_pose.pos_nees, 1, )
 vline(lowerlimit)
 vline(upperlimit)
 xlim([0 2*upperlimit])
+
+%%
+figure; 
+hold on
+histogram(log(nees/dof), Normalization="probability")
+
+hist_2_pdf_scaling = 5;
+u=-5:0.1:5; 
+
+plot(u, exp_gammapdf(u,dof/2,2/dof) / hist_2_pdf_scaling)
+
+
+vline(0, 'k')
+vline(log(lowerlimit/dof), 'k', 'LineStyle', '--')
+vline(log(upperlimit/dof), 'k', 'LineStyle', '--')
+
+xlabel("$ln(NEES (dof=3)/3)$", Interpreter="latex")
+ylabel("p")
+%%
+ figure;
+ hold on
+
+u=-5:0.01:5; 
+ for d = 1:20:240 
+    p = plot(u, exp_gammapdf(u,d/2,2/d));
+    plot(u, normpdf(u,0,sqrt(1/(2*d))), Color=p.Color, LineStyle="--");
+ end
+function y = exp_gammapdf(x, mu, theta)
+% The Log-Gamma Distribution and Non-Normal Error 
+% by Leigh J. Halliwell
+% CASUALTY ACTUARIAL SOCIETY 13(2), 173-
+    y = (1./gamma(mu)) .* exp( -exp(x) ./ theta ) .* (exp(x) ./ theta).^mu;
+end
